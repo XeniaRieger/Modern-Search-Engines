@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 import hashlib
 import nltk
+nltk.download("stopwords")
 from nltk.corpus import stopwords
 import langdetect
 from datetime import date
