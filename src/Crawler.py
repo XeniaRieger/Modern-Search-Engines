@@ -7,7 +7,7 @@ from DocumentIndex import DocumentIndex
 from datetime import datetime
 from urllib.robotparser import RobotFileParser
 
-sys.setrecursionlimit(50000)
+sys.setrecursionlimit(50000) # for pickle save
 
 
 def save_pickle(obj, path):
@@ -150,12 +150,13 @@ class Crawler:
         robots_fp.read()
         return robots_fp
 
-    def relevant(self, doc: Document):
+    def __relevant(self, doc: Document):
         return doc.language == "en"
 
     def crawl(self, frontier: collections.deque, document_index: DocumentIndex):
 
         while frontier:
+            doc = None
             url = frontier.pop()
             print(url, end="\t")
 
@@ -181,27 +182,28 @@ class Crawler:
                     continue
 
                 doc = Document(url)
-                if not self.relevant(doc):
+                if not self.__relevant(doc):
                     print("not relevant")
                     continue
 
                 # check sim_hashes, if no collision -> store doc in index
                 if not docIndex.has_similar_document(doc):
                     docIndex.add(doc)
-                    serialize_document(doc)
+
                     print("success")
+                    for l in doc.links:
+                        frontier.appendleft(l)
                 else:
                     print("similar document found")
 
             except Exception as e:
                 print("\tError: " + str(e))
                 continue
-
-            for l in doc.links:
-                frontier.appendleft(l)
-
-            serialize_frontier(frontier)
-            serialize_index(document_index)
+            finally:
+                if doc is not None:
+                    serialize_document(doc)
+                serialize_frontier(frontier)
+                serialize_index(document_index)
 
 
 

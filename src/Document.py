@@ -5,7 +5,7 @@ import hashlib
 import nltk
 import langdetect
 from datetime import datetime
-from DocumentIndex import tokenize
+from Tokenizer import tokenize
 
 
 class Document:
@@ -35,6 +35,10 @@ class Document:
             raise Exception("Request failed with status: " + str(res.status_code))
 
         self.soup = BeautifulSoup(res.text, 'html.parser')
+
+        # remove script and style elements
+        for script in self.soup(["script", "style"]):
+            script.decompose()
 
         self.tokens = self.__tokenize_document()
         self.language = self.__detect_document_language()

@@ -6,7 +6,9 @@ from datetime import datetime
 
 
 def count_roots():
-    document_path = os.path.join(os.getcwd(), "documents")
+    parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
+    serialisation_folder = os.path.join(parent_path, "serialization")
+    document_path = os.path.join(serialisation_folder, "documents")
     total_doc = 0
     count_roots_dic = {}
 
