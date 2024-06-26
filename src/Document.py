@@ -37,40 +37,45 @@ class Document:
 
         self.soup = BeautifulSoup(res.text, 'html.parser')
 
-        # remove script and style elements
-        for script in self.soup(["script", "style"]):
-            script.decompose()
+        self.description = self.__get_document_description()
 
-        self.tokens = self.__tokenize_document()
+        # remove unnecessary elements
+        for tag in self.soup(["script", "style", "link", "meta"]):
+            tag.decompose()
+
+        self.tokens = self.__tokenize(self.soup.get_text())
+        # extend the tokens by the description meta information
+        self.tokens.extend(self.__tokenize(self.description))
+
         self.language = self.__detect_document_language()
         self.links = self.__get_links()
-
-        self.description = self.__get_document_description()
         self.sim_hash = self.__generate_sim_hash()
-
         self.last_crawled = datetime.today()
-
         self.is_relevant = self.__check_relevant()
 
-    def __tokenize_document(self):
+    def __tokenize(self, text):
         """
-        removes stop words, punctuation and stems/lemmatizes all words
+        removes stop words, punctuation and lemmatizes all words
         """
-        tokens = nltk.tokenize.word_tokenize(self.soup.get_text())
-        return tokenize(tokens)
+        tokens = nltk.tokenize.word_tokenize(text)
+        return tokenize(tokens, ngrams=13)
 
     def __detect_document_language(self):
         return langdetect.detect(' '.join(self.tokens))
 
     def __get_document_description(self):
-        # set site description
         description_tag = self.soup.find('meta', attrs={'name': 'description'})
         if description_tag and 'content' in description_tag.attrs:
             return description_tag['content']
-        else:
-            return ""
 
-    def __generate_sim_hash(self):
+        # Check for 'og:description' meta tag if 'description' not found
+        og_description_tag = self.soup.find('meta', attrs={'property': 'og:description'})
+        if og_description_tag and 'content' in og_description_tag.attrs:
+            return og_description_tag['content']
+
+        return ""
+
+    def __generate_sim_hash(self, hash_len=128):
         weights = dict()
         tokens = self.tokens
         for token in tokens:
@@ -79,13 +84,12 @@ class Document:
             else:
                 weights[token] = 1
 
-        binary_length = 128
         doc_hashes = [int(hashlib.md5(token.encode('utf-8')).hexdigest(), 16) for token in tokens]
-        doc_binaries = [bin(h)[2:].zfill(binary_length) for h in doc_hashes]
+        doc_binaries = [bin(h)[2:].zfill(hash_len) for h in doc_hashes]
 
         # sum up all columns
-        v = [0] * binary_length
-        for col in range(binary_length):
+        v = [0] * hash_len
+        for col in range(hash_len):
             col_sum = 0
             for i, binary in enumerate(doc_binaries):
                 w = weights[tokens[i]]
@@ -108,6 +112,12 @@ class Document:
         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
         return base_url
 
+    @staticmethod
+    def get_domain(url: str):
+        domain = urlparse(url).netloc
+        domain = domain.replace("www.", "")
+        return domain
+
     def __get_links(self):
         a_tags = self.soup.find_all("a", href=True)
         hrefs = set()
@@ -129,7 +139,17 @@ class Document:
         return state
 
     def __check_relevant(self):
+        words = ["tübingen", "tuebingen", "tubingen"]
+
+        if any([w in self.url.lower() for w in words]):
+            return True
+
+        if self.language is None or self.language != "en":
+            return False
+
         for token in self.tokens:
-            if token == "Tübingen" or token == "tübingen":
+            # tokens should already be lower case but just in case be do it again here
+            token_lower = token.lower()
+            if token_lower in words:
                 return True
         return False
