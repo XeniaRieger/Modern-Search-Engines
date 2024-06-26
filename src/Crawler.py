@@ -79,6 +79,7 @@ class Crawler:
         self.__crawl_state = {}
 
         self.DOC_UPDATE_THRESHOLD = 86400 # after how many seconds should a document be re-fetched
+        self.SAME_SITE_THRESHOLD = 100 # after how many crawls for a domain (irr or relevant) should we stop adding links to frontier
 
     def is_allowed_to_crawl(self, url: str) -> int:
         """
@@ -136,6 +137,7 @@ class Crawler:
         self.__crawl_state[base_url] = {}
         self.__crawl_state[base_url]["last_crawl"] = datetime.today()
         self.__crawl_state[base_url]["robots_fp"] = robots_fp
+        self.__crawl_state[base_url]["total_crawls"] = 1
 
         if crawl_req_rate is not None:
             self.__crawl_state[base_url]["req_rate"] = crawl_req_rate
@@ -151,14 +153,22 @@ class Crawler:
         return robots_fp
 
     def __relevant(self, doc: Document):
+        return True
+
+    def __language_is_english(self, doc: Document):
         return doc.language == "en"
 
-    def crawl(self, frontier: collections.deque, document_index: DocumentIndex):
+    def __add_to_frontier(self, url: str) -> bool:
+        if self.__crawl_state[Document.get_base_url(url)]["total_crawls"] > self.SAME_SITE_THRESHOLD:
+            return False
+        return True
+
+    def crawl(self, frontier: collections.deque, document_index: DocumentIndex, print_mode: bool):
 
         while frontier:
             doc = None
             url = frontier.pop()
-            print(url, end="\t")
+            if print_mode: print(url, end="\t")
 
             # check if url already crawled
             if document_index.has_doc(url):
@@ -166,38 +176,43 @@ class Crawler:
                 last_crawl = document_index.get_doc_index(url)["last_crawled"]
                 time_since_last_crawl = max((datetime.today() - last_crawl).total_seconds(), 0)
                 if time_since_last_crawl < self.DOC_UPDATE_THRESHOLD:
-                    print("last crawled threshold not met")
+                    if print_mode: print("last crawled threshold not met")
                     continue
 
             try:
                 # check crawl rule of robots.txt
                 crawl_check = self.is_allowed_to_crawl(url)
                 if crawl_check == 0:  # disallowed
-                    print("not allowed")
+                    if print_mode: print("not allowed")
                     continue
                 elif crawl_check == 2:
                     # if req limit violation put the url at the end of the frontier
-                    print("request limit violation")
+                    if print_mode: print("request limit violation")
                     frontier.appendleft(url)
                     continue
 
                 doc = Document(url)
-                if not self.__relevant(doc):
-                    print("not relevant")
+                self.__crawl_state[Document.get_base_url(url)]["total_crawls"] += 1 # keep track of how many times base url was crawled
+                if not doc.is_relevant:
+                    if print_mode: print("not relevant")
                     continue
-
-                # check sim_hashes, if no collision -> store doc in index
-                if not docIndex.has_similar_document(doc):
-                    docIndex.add(doc)
-
-                    print("success")
-                    for l in doc.links:
-                        frontier.appendleft(l)
                 else:
-                    print("similar document found")
+                    # add to frontier even if language is wrong, because we might find english content in links IF content relevant
+                    # perform checks in add_to_frontier, so we don't add too much irrelevant links / links in the same domain
+                    if self.__add_to_frontier(url):
+                        for l in doc.links:
+                            frontier.appendleft(l)
+                        if print_mode: print("added to frontier")
+
+                # check sim_hashes, if no collision + language is english -> store doc in index
+                if not docIndex.has_similar_document(doc) and self.__language_is_english(doc):
+                    docIndex.add(doc)
+                    if print_mode: print("indexed")
+                else:
+                    if print_mode: print("not indexed (similar found or wrong language)")
 
             except Exception as e:
-                print("\tError: " + str(e))
+                if print_mode: print("\tError: " + str(e))
                 continue
             finally:
                 if doc is not None:
@@ -223,4 +238,4 @@ if __name__ == '__main__':
     frontier = load_frontier()
     docIndex = load_document_index()
     crawler = Crawler()
-    crawler.crawl(frontier, docIndex)
+    crawler.crawl(frontier, docIndex, True)

@@ -20,6 +20,7 @@ class Document:
         self.tokens = None
         self.links = []
         self.last_crawled = None
+        self.is_relevant = None
 
         # fetch document content and store the relevant information
         self.__fetch_document_content()
@@ -48,6 +49,8 @@ class Document:
         self.sim_hash = self.__generate_sim_hash()
 
         self.last_crawled = datetime.today()
+
+        self.is_relevant = self.__check_relevant()
 
     def __tokenize_document(self):
         """
@@ -124,3 +127,9 @@ class Document:
             del state["soup"]
 
         return state
+
+    def __check_relevant(self):
+        for token in self.tokens:
+            if token == "Tübingen" or token == "tübingen":
+                return True
+        return False
