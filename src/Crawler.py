@@ -152,11 +152,8 @@ class Crawler:
         robots_fp.read()
         return robots_fp
 
-    def __relevant(self, doc: Document):
-        return True
-
-    def __language_is_english(self, doc: Document):
-        return doc.language == "en"
+    def __is_relevant(self, doc: Document):
+        return doc.language == "en" and doc.is_relevant
 
     def __add_to_frontier(self, url: str) -> bool:
         if self.__crawl_state[Document.get_base_url(url)]["total_crawls"] > self.SAME_SITE_THRESHOLD:
@@ -193,23 +190,19 @@ class Crawler:
 
                 doc = Document(url)
                 self.__crawl_state[Document.get_base_url(url)]["total_crawls"] += 1 # keep track of how many times base url was crawled
-                if not doc.is_relevant:
-                    if print_mode: print("not relevant")
-                    continue
-                else:
-                    # add to frontier even if language is wrong, because we might find english content in links IF content relevant
-                    # perform checks in add_to_frontier, so we don't add too much irrelevant links / links in the same domain
+
+                # check sim_hashes, if no collision + language is english and doc related to Tü -> store doc in index
+                if not docIndex.has_similar_document(doc) and self.__is_relevant(doc):
+                    docIndex.add(doc)
+
+                    # perform checks in add_to_frontier, so we don't add too many links in the same domain
                     if self.__add_to_frontier(url):
                         for l in doc.links:
                             frontier.appendleft(l)
-                        if print_mode: print("added to frontier")
 
-                # check sim_hashes, if no collision + language is english -> store doc in index
-                if not docIndex.has_similar_document(doc) and self.__language_is_english(doc):
-                    docIndex.add(doc)
-                    if print_mode: print("indexed")
+                    if print_mode: print("indexed + added to frontier")
                 else:
-                    if print_mode: print("not indexed (similar found or wrong language)")
+                    if print_mode: print("not indexed (similar found, wrong language or unrelated)")
 
             except Exception as e:
                 if print_mode: print("\tError: " + str(e))
