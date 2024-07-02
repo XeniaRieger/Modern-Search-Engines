@@ -61,10 +61,11 @@ def load_frontier():
     if os.path.exists(frontier_path):
         ft = load_pickle(frontier_path)
     else:
-        # TODO read default frontier from file
         ft = collections.deque([])
-        ft.appendleft("https://uni-tuebingen.de/en/")
-
+        file = open("start_frontier.txt", "r")
+        for f in file:
+            ft.appendleft(f.rstrip('\n'))
+        file.close()
     return ft
 
 
@@ -183,7 +184,7 @@ class Crawler:
             for l in links:
                 frontier.appendleft(l)
 
-    def crawl(self, frontier: collections.deque, document_index: DocumentIndex, print_mode: bool):
+    def crawl(self, frontier: collections.deque, document_index: DocumentIndex, print_mode: bool, expand_doc: bool):
 
         while frontier:
             doc = None
@@ -219,7 +220,7 @@ class Crawler:
                         frontier.remove(link)
                     continue
 
-                doc = Document(url)
+                doc = Document(url, expand_doc)
 
                 # check sim_hashes, if no collision + language is english and doc related to Tü -> store doc in index
                 if doc.is_relevant and not docIndex.has_similar_document(doc):
@@ -247,4 +248,4 @@ if __name__ == '__main__':
     frontier = load_frontier()
     docIndex = load_document_index()
     crawler = Crawler()
-    crawler.crawl(frontier, docIndex, print_mode=True)
+    crawler.crawl(frontier, docIndex, print_mode=True, expand_doc=True)
