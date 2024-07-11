@@ -40,7 +40,7 @@ class DocumentIndex:
 
         for token in doc.tokens:
             self.__tf[doc.url][token] += 1
-        for token in set(doc.tokens)
+        for token in set(doc.tokens):
             self.__df[token] += 1
 
             if doc.url not in self.__inverted_index[token]:
