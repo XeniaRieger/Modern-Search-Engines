@@ -10,10 +10,12 @@ import math
 
 # nltk.download('words')
 # nltk.download('stopwords')
+# nltk.download('punkt')
 # nltk.download('wordnet')
 # nltk.download('omw-1.4')
 
-doc2query = Doc2Query(num_samples=10)
+
+doc2query = Doc2Query(num_samples=10, fast_tokenizer=True)
 scorer = QueryScorer(ElectraScorer(verbose=False))
 filterer = QueryFilter(t=0, append=False)
 
