@@ -77,7 +77,7 @@ class Document:
         """
         text = self.__expand_doc(text)
         tokens = nltk.tokenize.word_tokenize(text)
-        return tokenize(tokens, ngrams=13)
+        return tokenize(tokens, ngrams=1)
 
     def __detect_document_language(self):
         langs =  [{lang.lang: lang.prob} for lang in langdetect.detect_langs(' '.join(self.tokens))]

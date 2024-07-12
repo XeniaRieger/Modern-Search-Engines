@@ -8,9 +8,11 @@ from Tokenizer import tokenize
 def hamming_distance(hash1, hash2):
     return bin(hash1 ^ hash2).count('1')
 
+
 # needed for pickle
 def create_int_defaultdict():
     return collections.defaultdict(int)
+
 
 # needed for pickle
 def create_float_defaultdict():
@@ -28,6 +30,23 @@ class DocumentIndex:
         self.__df = collections.defaultdict(int)
         self.__idf = collections.defaultdict(float)
         self.__tfidf = collections.defaultdict(create_float_defaultdict)
+        self.__avg_doc_length = 0
+
+    def get_inverted_index(self):
+        return self.__inverted_index
+
+    def get_tf(self):
+        return self.__tf
+
+    def get_idf(self):
+        self.calculate_idf()
+        return self.__idf
+
+    def get_df(self):
+        return self.__df
+
+    def get_avg_doc_length(self):
+        return self.__avg_doc_length
 
     def add(self, doc: Document):
         self.__doc_metadata[doc.url] = {
@@ -46,12 +65,16 @@ class DocumentIndex:
             if doc.url not in self.__inverted_index[token]:
                 self.__inverted_index[token].add(doc.url)
 
-    def __calculate_idf(self):
+        # running average of document length
+        self.__avg_doc_length = (self.__avg_doc_length * (self.total_documents - 1) + len(
+            doc.tokens)) / self.total_documents
+
+    def calculate_idf(self):
         for term, count in self.__df.items():
             self.__idf[term] = math.log(self.total_documents / count)
 
     def __calculate_tfidf(self):
-        self.__calculate_idf()
+        self.calculate_idf()
         for doc_id, terms in self.__tf.items():
             for term, count in terms.items():
                 self.__tfidf[doc_id][term] = count * self.__idf[term]
@@ -95,3 +118,4 @@ class DocumentIndex:
         scores = self.__score_documents(query_tfidf)
         ranked_docs = sorted(scores.items(), key=lambda item: item[1], reverse=True)
         return ranked_docs[:top_k]
+
