@@ -4,6 +4,8 @@ from urllib.parse import urlparse
 import hashlib
 import nltk
 import langdetect
+from langdetect.lang_detect_exception import LangDetectException
+
 langdetect.DetectorFactory.seed = 123
 from datetime import datetime
 from Tokenizer import tokenize, doc_2_query_minus
@@ -18,7 +20,9 @@ class Document:
         self.sim_hash = None
         self.language = None
         self.description = None
+        self.single_tokens = None  # single word tokens  no n-grams!
         self.tokens = None
+        self.raw_html = None
         self.links = []
         self.last_crawled = None
         self.is_relevant = None
@@ -37,6 +41,7 @@ class Document:
         if res.status_code != 200:
             raise Exception("Request failed with status: " + str(res.status_code))
 
+        self.raw_html = res.text
         self.soup = BeautifulSoup(res.text, 'html.parser')
 
         self.description = self.__get_document_description()
@@ -50,10 +55,13 @@ class Document:
             text = self.soup.get_text()
         else:
             text = " ".join(text.stripped_strings)
-        self.tokens = self.__tokenize(text)
+
+        self.tokens = self.__tokenize(text, ngrams=3)
+        self.single_tokens = self.__tokenize(text)
 
         # extend the tokens by the description meta information
-        self.tokens.extend(self.__tokenize(self.description))
+        if self.description is not None:
+            self.tokens.extend(self.__tokenize(self.description))
 
         self.language = self.__detect_document_language()
         self.links = self.__get_links()
@@ -71,17 +79,39 @@ class Document:
         else:
             return text
     
-    def __tokenize(self, text):
+    def __tokenize(self, text, ngrams=1):
         """
         removes stop words, punctuation and lemmatizes all words
         """
         text = self.__expand_doc(text)
         tokens = nltk.tokenize.word_tokenize(text)
-        return tokenize(tokens, ngrams=13)
+        return tokenize(tokens, ngrams)
 
     def __detect_document_language(self):
-        langs =  [{lang.lang: lang.prob} for lang in langdetect.detect_langs(' '.join(self.tokens))]
-        return langs       
+        try:
+            # first extract the lang property from the html tag
+            # we add 25% probability to the language thats listed in the html tag
+            # then detect the language of the text content
+            # if the "en" language is above 50%, the document is considered english
+
+            html_tag = self.soup.find('html')
+            if hasattr(html_tag, 'attrs'):
+                html_lang = html_tag.attrs.get('lang', None)
+                if html_lang is not None:
+                    html_lang = html_lang.split('-')[0] # converts en-LS or en-GB to en
+
+            detected_langs = {lang.lang: lang.prob for lang in langdetect.detect_langs(' '.join(self.single_tokens))}
+            if html_lang is not None and html_lang in detected_langs:
+                detected_langs[html_lang] += 0.25
+
+            sorted_langs = dict(sorted(detected_langs.items(), key=lambda item: item[1], reverse=True))
+            if 'en' in sorted_langs and sorted_langs['en'] > 0.5:
+                return 'en'
+
+            # if the document is not english we just return the highest prob language
+            return list(sorted_langs.keys())[0]
+        except LangDetectException:
+            return None
     
     def __get_document_description(self):
         description_tag = self.soup.find('meta', attrs={'name': 'description'})
@@ -97,7 +127,7 @@ class Document:
 
     def __generate_sim_hash(self, hash_len=128):
         weights = dict()
-        tokens = self.tokens
+        tokens = self.single_tokens
         for token in tokens:
             if token in weights:
                 weights[token] += 1
@@ -156,16 +186,19 @@ class Document:
         if "soup" in state:
             del state["soup"]
 
+        if "single_tokens" in state:
+            del state["single_tokens"]
+
         return state
 
     def __check_relevant(self):
         words = ["tübingen", "tuebingen", "tubingen"]
 
-        if any([w in self.url.lower() for w in words]):
-            return True
-
         if self.language is None or self.language != "en":
             return False
+
+        if any([w in self.url.lower() for w in words]):
+            return True
 
         for token in self.tokens:
             # tokens should already be lower case but just in case be do it again here

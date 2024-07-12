@@ -20,10 +20,18 @@ def load_pickle(path):
         return pickle.load(f)
 
 
+def save_text(text, path):
+    with open(path, "w", encoding="utf-8") as text_file:
+        text_file.write(text)
+
+
 def serialize_document(doc: Document):
     parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
-    doc_path = os.path.join(parent_path, "serialization", "documents", f"{doc.url_hash}.pickle")
-    save_pickle(doc, doc_path)
+    pickle_path = os.path.join(parent_path, "serialization", "documents", "pickle", f"{doc.url_hash}.pickle")
+    html_path = os.path.join(parent_path, "serialization", "documents", "html", f"{doc.url_hash}.html")
+
+    save_pickle(doc, pickle_path)
+    save_text(doc.raw_html, html_path)
 
 
 def serialize_frontier(frontier):
@@ -45,12 +53,12 @@ def create_folder_structure():
     parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
 
     serialisation_folder = os.path.join(parent_path, "serialization")
-    if not os.path.exists(serialisation_folder):
-        os.makedirs(serialisation_folder)
+    documents_path1 = os.path.join(serialisation_folder, "documents", "pickle")
+    documents_path2 = os.path.join(serialisation_folder, "documents", "html")
 
-    documents_path = os.path.join(serialisation_folder, "documents")
-    if not os.path.exists(documents_path):
-        os.makedirs(documents_path)
+    for p in [serialisation_folder, documents_path1, documents_path2]:
+        if not os.path.exists(p):
+            os.makedirs(p)
 
 
 def load_frontier():
@@ -63,8 +71,9 @@ def load_frontier():
     else:
         ft = collections.deque([])
         file = open("start_frontier.txt", "r")
-        for f in file:
-            ft.appendleft(f.rstrip('\n'))
+        for line in file:
+            if not line.startswith('#'):
+                ft.appendleft(line.rstrip('\n'))
         file.close()
     return ft
 
@@ -89,10 +98,12 @@ class Crawler:
         #  - req_rate: the request rate as tuple of (amount, seconds) for this domain
         #  - robots_fp: the robots file parser object to check if a given path is allowed to crawl
         #  - total_crawls: the amount of pages that were crawled, incremented for each new crawl
+        #  - irrelevancy_counter: the amount of crawls for a domain that had no relevant content. This is reset if a relevant page is found (before the maximum is reached)
         self.__crawl_state = {}
 
-        self.DOC_UPDATE_THRESHOLD = 86400 # after how many seconds should a document be re-fetched
-        self.SAME_SITE_THRESHOLD = 100 # after how many crawls for a domain (irr or relevant) should we stop adding links to frontier
+        self.DOC_UPDATE_THRESHOLD = 86400       # after how many seconds should a document be re-fetched
+        self.SAME_SITE_THRESHOLD = 100          # after how many crawls for a domain should we stop adding links to frontier
+        self.SITE_IRRELEVANCY_THRESHOLD = 100   # after how many CONSECUTIVE irrelevant crawls for a domain should we remove the domain from frontier
 
     # for debugging
     def __pretty_print_crawl_state(self):
@@ -111,6 +122,7 @@ class Crawler:
         returns: 1 if site is allowed to be crawled
         returns: 2 if crawl delay or request limit is reached
         returns: 3 if maximum amount of crawls for the domain is reached
+        returns: 4 if the maximum amount of irrelevant crawls for the domain is reached
         """
         now = datetime.today()
         domain = Document.get_domain(url)
@@ -126,6 +138,9 @@ class Crawler:
 
         if site_crawl_state.get("total_crawls", 0) >= self.SAME_SITE_THRESHOLD:
             return 3
+
+        if site_crawl_state.get("irrelevancy_counter", 0) >= self.SITE_IRRELEVANCY_THRESHOLD:
+            return 4
 
         # if crawling for this site (and path) is disallowed
         robots_fp = site_crawl_state["robots_fp"]
@@ -165,6 +180,7 @@ class Crawler:
         self.__crawl_state[domain]["last_crawl"] = datetime.today()
         self.__crawl_state[domain]["robots_fp"] = robots_fp
         self.__crawl_state[domain]["total_crawls"] = 0
+        self.__crawl_state[domain]['irrelevancy_counter'] = 0
 
         if crawl_req_rate is not None:
             self.__crawl_state[domain]["req_rate"] = crawl_req_rate
@@ -189,6 +205,7 @@ class Crawler:
         while frontier:
             doc = None
             url = frontier.pop()
+            domain = Document.get_domain(url)
             if print_mode: print(url, end="\t")
 
             # check if url already crawled
@@ -204,18 +221,20 @@ class Crawler:
                 # check crawl rule of robots.txt
                 crawl_check = self.is_allowed_to_crawl(url)
 
-                if crawl_check == 0:  # disallowed
+                if crawl_check == 0:    # disallowed
                     if print_mode: print("not allowed")
                     continue
-                elif crawl_check == 2:
-                    # if req limit violation put the url at the end of the frontier
+                elif crawl_check == 2:  # if req limit violation put the url at the end of the frontier
                     if print_mode: print("request limit violation")
                     frontier.appendleft(url)
                     continue
-                elif crawl_check == 3:
-                    # remove the urls with same domain from the frontier
-                    if print_mode: print("maximum crawl amount reached")
-                    domain = Document.get_domain(url)
+                elif crawl_check == 3:  # remove the urls with same domain from the frontier
+                    if print_mode: print(f"maximum crawl amount for {domain} reached, removing all links from this domain")
+                    for link in [u for u in frontier if Document.get_domain(u) == domain]:
+                        frontier.remove(link)
+                    continue
+                elif crawl_check == 4:  # remove the urls with same domain from the frontier
+                    if print_mode: print(f"maximum irrelevancy counter for {domain} reached, removing all links from this domain")
                     for link in [u for u in frontier if Document.get_domain(u) == domain]:
                         frontier.remove(link)
                     continue
@@ -223,17 +242,27 @@ class Crawler:
                 doc = Document(url, expand_doc)
 
                 # check sim_hashes, if no collision + language is english and doc related to Tü -> store doc in index
-                if doc.is_relevant and not docIndex.has_similar_document(doc):
-                    docIndex.add(doc)
-                    self.__add_links_to_frontier(url, doc.links)
+                if not doc.is_relevant:
+                    self.__crawl_state[domain]['irrelevancy_counter'] = self.__crawl_state[domain].get("irrelevancy_counter", 0) + 1
+                    if print_mode: print(f"document not relevant, irrelevancy_counter for domain: {self.__crawl_state[domain]['irrelevancy_counter']}")
+                    continue
+                elif docIndex.has_similar_document(doc):
+                    if print_mode: print("similar document found")
+                    continue
 
-                    if print_mode: print("indexed + added to frontier")
-                else:
-                    if print_mode: print("not indexed (similar found, wrong language or unrelated)")
+                # SITE RELEVANT
+                docIndex.add(doc)
+                self.__add_links_to_frontier(url, doc.links)
 
-                self.__pretty_print_crawl_state()
+                # reset the irrelevancy_counter
+                self.__crawl_state[domain]['irrelevancy_counter'] = 0
+                if print_mode:
+                    print("indexed + added to frontier")
+
+                # self.__pretty_print_crawl_state()
             except Exception as e:
                 if print_mode: print("\tError: " + str(e))
+                # raise e
                 continue
             finally:
                 if doc is not None:
