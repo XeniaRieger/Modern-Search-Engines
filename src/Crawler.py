@@ -75,7 +75,7 @@ class Crawler:
                 self.__dict__.update(obj.__dict__)
         else:
             self.frontier = collections.deque([])
-            with open("start_frontier.txt", 'rb') as file:
+            with open("start_frontier.txt", 'r') as file:
                 for line in file.readlines():
                     if line and not line.startswith('#'):
                         self.frontier.appendleft(line.rstrip('\n'))
@@ -202,7 +202,7 @@ class Crawler:
             "last_crawled": doc.last_crawled,
         }
 
-    def crawl(self, print_mode: bool, expand_doc: bool):
+    def crawl(self, print_mode: bool):
 
         while self.frontier:
             doc = None
@@ -241,7 +241,7 @@ class Crawler:
                         self.frontier.remove(link)
                     continue
 
-                doc = Document(url, expand_doc)
+                doc = Document(url)
 
                 # check sim_hashes, if no collision + language is english and doc related to Tü -> store doc in index
                 if not doc.is_relevant:
@@ -264,7 +264,6 @@ class Crawler:
                 # self.__pretty_print_crawl_state()
             except Exception as e:
                 if print_mode: print("\tError: " + str(e))
-                # raise e
                 continue
             finally:
                 if doc is not None:
@@ -276,4 +275,4 @@ if __name__ == '__main__':
     create_folder_structure()
 
     crawler = Crawler()
-    crawler.crawl(print_mode=True, expand_doc=True)
+    crawler.crawl(print_mode=True)

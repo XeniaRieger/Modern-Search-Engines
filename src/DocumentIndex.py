@@ -4,6 +4,7 @@ import math
 import os
 import pickle
 from Tokenizer import tokenize
+from Doc2Query import doc_2_query_minus
 
 
 def hamming_distance(hash1, hash2):
@@ -36,25 +37,35 @@ class DocumentIndex:
         self.__idf = collections.defaultdict(float)
         self.__tfidf = collections.defaultdict(create_float_defaultdict)
 
-    def create_index_for_documents(self, documents_path):
+    def create_index_for_documents(self, documents_path, ngrams=1, use_doc2query=True):
         for root, dirs, files in os.walk(documents_path):
             for file in files:
                 if file.endswith('.pickle'):
                     try:
                         with open(os.path.join(root, file), 'rb') as f:
-                            self.add(pickle.load(f))
-                    except:
+                            self.add(pickle.load(f), ngrams, use_doc2query)
+                    except Exception as e:
+                        print(str(e))
                         continue
         self.__calculate_tfidf()
         print("index created.")
 
-    def add(self, doc: Document):
+    def add(self, doc: Document, ngrams, use_doc2query):
         self.total_documents += 1
+        single_tokens = doc.single_tokens
 
-        for token in doc.tokens:
+        if use_doc2query:
+            single_tokens.extend(doc_2_query_minus(doc))
+
+        if ngrams > 1:
+            tokens = tokenize(' '.join(single_tokens), ngrams)
+        else:
+            tokens = single_tokens
+
+        for token in tokens:
             self.__tf[doc.url][token] += 1
 
-        for token in set(doc.tokens):
+        for token in set(tokens):
             self.__df[token] += 1
 
             if doc.url not in self.inverted_index[token]:
@@ -102,16 +113,15 @@ class DocumentIndex:
         return ranked_docs[:top_k]
 
 
-
-
 if __name__ == '__main__':
     parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
     documents_path = os.path.join(parent_path, "serialization", "documents", "pickle")
 
     index = DocumentIndex()
-    index.create_index_for_documents(documents_path)
+    index.create_index_for_documents(documents_path, ngrams=3, use_doc2query=True)
 
     index.save(os.path.join(parent_path, "serialization", "index.pickle"))
 
     # load an already created index with:
-    # load_index(os.path.join(parent_path, "serialization", "index.pickle"))
+    # index = load_index(os.path.join(parent_path, "serialization", "index.pickle"))
+

@@ -8,12 +8,12 @@ from langdetect.lang_detect_exception import LangDetectException
 
 langdetect.DetectorFactory.seed = 123
 from datetime import datetime
-from Tokenizer import tokenize, doc_2_query_minus
+from Tokenizer import tokenize
 
 
 class Document:
 
-    def __init__(self, url: str, expand_doc: bool):
+    def __init__(self, url: str):
         self.url = url
         self.url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
         self.soup = None
@@ -21,12 +21,11 @@ class Document:
         self.language = None
         self.description = None
         self.single_tokens = None  # single word tokens  no n-grams!
-        self.tokens = None
+        self.raw_text = None       # the raw document text with stopwords etc
         self.raw_html = None
         self.links = []
         self.last_crawled = None
         self.is_relevant = None
-        self.expand_doc = expand_doc
 
         # fetch document content and store the relevant information
         self.__fetch_document_content()
@@ -54,7 +53,7 @@ class Document:
         else:
             text = " ".join(text.stripped_strings)
 
-        self.tokens = tokenize(text, ngrams=3)
+        self.raw_text = text
         self.single_tokens = tokenize(text, ngrams=1)
 
         # TODO check if this is useful or not
@@ -68,16 +67,6 @@ class Document:
         self.last_crawled = datetime.today()
         self.is_relevant = self.__check_relevant()
 
-    def __expand_doc(self, text):
-        """
-        expand the document using doc2query based on the readable part of the webpage
-        """
-        if self.expand_doc:
-            self.expand_doc = False     # do not expand the document for the page description
-            return doc_2_query_minus(text)
-        else:
-            return text
-    
     def __detect_document_language(self):
         try:
             # first extract the lang property from the html tag
@@ -177,9 +166,6 @@ class Document:
         if "soup" in state:
             del state["soup"]
 
-        if "single_tokens" in state:
-            del state["single_tokens"]
-
         return state
 
     def __check_relevant(self):
@@ -191,9 +177,7 @@ class Document:
         if any([w in self.url.lower() for w in words]):
             return True
 
-        for token in self.tokens:
-            # tokens should already be lower case but just in case be do it again here
-            token_lower = token.lower()
-            if token_lower in words:
+        for token in self.single_tokens:
+            if token in words:
                 return True
         return False
