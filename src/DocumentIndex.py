@@ -1,8 +1,10 @@
 import Document
 import collections
 import math
-
+import os
+import pickle
 from Tokenizer import tokenize
+from Doc2Query import doc_2_query_minus
 
 
 def hamming_distance(hash1, hash2):
@@ -19,12 +21,16 @@ def create_float_defaultdict():
     return collections.defaultdict(float)
 
 
+def load_index(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
+
 class DocumentIndex:
 
     def __init__(self):
-        self.__doc_metadata = {}
-        self.__inverted_index = collections.defaultdict(set)
         self.total_documents = 0
+        self.inverted_index = collections.defaultdict(set)
 
         self.__tf = collections.defaultdict(create_int_defaultdict)
         self.__df = collections.defaultdict(int)
@@ -48,22 +54,39 @@ class DocumentIndex:
     def get_avg_doc_length(self):
         return self.__avg_doc_length
 
-    def add(self, doc: Document):
-        self.__doc_metadata[doc.url] = {
-            "url_hash": doc.url_hash, # in case we need to read the file from disk
-            "sim_hash": doc.sim_hash,
-            "last_crawled": doc.last_crawled,
-            "description": doc.description
-        }
-        self.total_documents += 1
+    def create_index_for_documents(self, documents_path, ngrams=1, use_doc2query=True):
+        for root, dirs, files in os.walk(documents_path):
+            for file in files:
+                if file.endswith('.pickle'):
+                    try:
+                        with open(os.path.join(root, file), 'rb') as f:
+                            self.add(pickle.load(f), ngrams, use_doc2query)
+                    except Exception as e:
+                        print(str(e))
+                        continue
+        self.__calculate_tfidf()
+        print("index created.")
 
-        for token in doc.tokens:
+    def add(self, doc: Document, ngrams, use_doc2query):
+        self.total_documents += 1
+        single_tokens = doc.single_tokens
+
+        if use_doc2query:
+            single_tokens.extend(doc_2_query_minus(doc))
+
+        if ngrams > 1:
+            tokens = tokenize(' '.join(single_tokens), ngrams)
+        else:
+            tokens = single_tokens
+
+        for token in tokens:
             self.__tf[doc.url][token] += 1
-        for token in set(doc.tokens):
+
+        for token in set(tokens):
             self.__df[token] += 1
 
-            if doc.url not in self.__inverted_index[token]:
-                self.__inverted_index[token].add(doc.url)
+            if doc.url not in self.inverted_index[token]:
+                self.inverted_index[token].add(doc.url)
 
         # running average of document length
         self.__avg_doc_length = (self.__avg_doc_length * (self.total_documents - 1) + len(
@@ -79,18 +102,6 @@ class DocumentIndex:
             for term, count in terms.items():
                 self.__tfidf[doc_id][term] = count * self.__idf[term]
 
-    def has_doc(self, url):
-        return url in self.__doc_metadata
-
-    def get_doc_index(self, url):
-        return self.__doc_metadata.get(url, None)
-
-    def has_similar_document(self, to_check: Document, threshold=5):
-        for url, doc_idx in self.__doc_metadata.items():
-            if url != to_check.url and hamming_distance(doc_idx["sim_hash"], to_check.sim_hash) < threshold:
-                return True
-        return False
-
     def __calculate_query_tfidf(self, query_tokens):
         query_tf = collections.defaultdict(int)
         for token in query_tokens:
@@ -105,17 +116,33 @@ class DocumentIndex:
     def __score_documents(self, query_tfidf):
         scores = collections.defaultdict(float)
         for token, query_score in query_tfidf.items():
-            if token in self.__inverted_index:
-                for doc_id in self.__inverted_index[token]:
+            if token in self.inverted_index:
+                for doc_id in self.inverted_index[token]:
                     scores[doc_id] += query_score * self.__tfidf[doc_id][token]
         return scores
 
+    def save(self, path):
+        with open(path, 'wb') as f:
+            pickle.dump(self, f)
+
     def search(self, query: str, top_k: int = 10):
-        print("PROCESSING QUERY:", query)
-        self.__calculate_tfidf() # probably not a good idea to do this for every query
+        print("PROCESSING QUERY: ", query)
         query_tokens = tokenize(query.split())
         query_tfidf = self.__calculate_query_tfidf(query_tokens)
         scores = self.__score_documents(query_tfidf)
         ranked_docs = sorted(scores.items(), key=lambda item: item[1], reverse=True)
         return ranked_docs[:top_k]
+
+
+if __name__ == '__main__':
+    parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
+    documents_path = os.path.join(parent_path, "serialization", "documents", "pickle")
+
+    index = DocumentIndex()
+    index.create_index_for_documents(documents_path, ngrams=3, use_doc2query=True)
+
+    index.save(os.path.join(parent_path, "serialization", "index.pickle"))
+
+    # load an already created index with:
+    # index = load_index(os.path.join(parent_path, "serialization", "index.pickle"))
 

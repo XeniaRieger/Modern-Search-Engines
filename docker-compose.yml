@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  webscraper:
+    environment:
+      - PYTHONUNBUFFERED=1
+    build: .
+    volumes:
+      - ./serialization:/usr/src/serialization

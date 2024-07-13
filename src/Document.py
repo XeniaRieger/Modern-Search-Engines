@@ -2,43 +2,48 @@ from bs4 import BeautifulSoup
 import requests
 from urllib.parse import urlparse
 import hashlib
-import nltk
 import langdetect
+from langdetect.lang_detect_exception import LangDetectException
+
 langdetect.DetectorFactory.seed = 123
 from datetime import datetime
-from Tokenizer import tokenize, doc_2_query_minus
+from Tokenizer import tokenize
 
 
 class Document:
 
-    def __init__(self, url: str, expand_doc: bool):
+    def __init__(self, url: str):
         self.url = url
         self.url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
         self.soup = None
         self.sim_hash = None
         self.language = None
         self.description = None
-        self.tokens = None
+        self.single_tokens = None  # single word tokens  no n-grams!
+        self.raw_text = None       # the raw document text with stopwords etc
+        self.raw_html = None
         self.links = []
         self.last_crawled = None
         self.is_relevant = None
-        self.expand_doc = expand_doc
 
         # fetch document content and store the relevant information
         self.__fetch_document_content()
 
     def __fetch_document_content(self):
-
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9'
         }
-        res = requests.get(self.url, headers=headers)
+        res = requests.get(self.url, timeout=8, headers=headers)
+        content_type = res.headers.get('Content-Type', '')
+        if 'text/html' not in content_type:
+            raise Exception("Not HTML page")
+
         if res.status_code != 200:
             raise Exception("Request failed with status: " + str(res.status_code))
 
+        self.raw_html = res.text
         self.soup = BeautifulSoup(res.text, 'html.parser')
-
         self.description = self.__get_document_description()
 
         # remove unnecessary elements
@@ -50,10 +55,14 @@ class Document:
             text = self.soup.get_text()
         else:
             text = " ".join(text.stripped_strings)
-        self.tokens = self.__tokenize(text)
 
+        self.raw_text = text
+        self.single_tokens = tokenize(text, ngrams=1)
+
+        # TODO check if this is useful or not
         # extend the tokens by the description meta information
-        self.tokens.extend(self.__tokenize(self.description))
+        # if self.description is not None:
+        #     self.tokens.extend(tokenize(self.description))
 
         self.language = self.__detect_document_language()
         self.links = self.__get_links()
@@ -61,27 +70,31 @@ class Document:
         self.last_crawled = datetime.today()
         self.is_relevant = self.__check_relevant()
 
-    def __expand_doc(self, text):
-        """
-        expand the document using doc2query based on the readable part of the webpage
-        """
-        if self.expand_doc:
-            self.expand_doc = False     # do not expand the document for the page description
-            return doc_2_query_minus(text)
-        else:
-            return text
-    
-    def __tokenize(self, text):
-        """
-        removes stop words, punctuation and lemmatizes all words
-        """
-        text = self.__expand_doc(text)
-        tokens = nltk.tokenize.word_tokenize(text)
-        return tokenize(tokens, ngrams=1)
-
     def __detect_document_language(self):
-        langs =  [{lang.lang: lang.prob} for lang in langdetect.detect_langs(' '.join(self.tokens))]
-        return langs       
+        try:
+            # first extract the lang property from the html tag
+            # we add 25% probability to the language thats listed in the html tag
+            # then detect the language of the text content
+            # if the "en" language is above 50%, the document is considered english
+
+            html_tag = self.soup.find('html')
+            if hasattr(html_tag, 'attrs'):
+                html_lang = html_tag.attrs.get('lang', None)
+                if html_lang is not None:
+                    html_lang = html_lang.split('-')[0] # converts en-LS or en-GB to en
+
+            detected_langs = {lang.lang: lang.prob for lang in langdetect.detect_langs(' '.join(self.single_tokens))}
+            if html_lang is not None and html_lang in detected_langs:
+                detected_langs[html_lang] += 0.25
+
+            sorted_langs = dict(sorted(detected_langs.items(), key=lambda item: item[1], reverse=True))
+            if 'en' in sorted_langs and sorted_langs['en'] > 0.5:
+                return 'en'
+
+            # if the document is not english we just return the highest prob language
+            return list(sorted_langs.keys())[0]
+        except LangDetectException:
+            return None
     
     def __get_document_description(self):
         description_tag = self.soup.find('meta', attrs={'name': 'description'})
@@ -97,7 +110,7 @@ class Document:
 
     def __generate_sim_hash(self, hash_len=128):
         weights = dict()
-        tokens = self.tokens
+        tokens = self.single_tokens
         for token in tokens:
             if token in weights:
                 weights[token] += 1
@@ -161,15 +174,13 @@ class Document:
     def __check_relevant(self):
         words = ["tübingen", "tuebingen", "tubingen"]
 
-        if any([w in self.url.lower() for w in words]):
-            return True
-
         if self.language is None or self.language != "en":
             return False
 
-        for token in self.tokens:
-            # tokens should already be lower case but just in case be do it again here
-            token_lower = token.lower()
-            if token_lower in words:
+        if any([w in self.url.lower() for w in words]):
+            return True
+
+        for token in self.single_tokens:
+            if token in words:
                 return True
         return False
