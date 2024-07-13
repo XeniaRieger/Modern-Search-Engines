@@ -23,7 +23,8 @@ lemmatizer = WordNetLemmatizer()
 stopwords = stopwords.words('english')
 
 
-def tokenize(tokens: list, ngrams=1):
+def tokenize(text: str, ngrams=1):
+    tokens = nltk.tokenize.word_tokenize(text)
     cleaned_tokens = [lemmatizer.lemmatize(t).lower() for t in tokens if t.isalnum() and t not in stopwords]
     if ngrams > 1:
         return [" ".join(t) for t in nltk.ngrams(cleaned_tokens, ngrams)]

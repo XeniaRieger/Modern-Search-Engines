@@ -32,7 +32,6 @@ class Document:
         self.__fetch_document_content()
 
     def __fetch_document_content(self):
-
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9'
@@ -43,7 +42,6 @@ class Document:
 
         self.raw_html = res.text
         self.soup = BeautifulSoup(res.text, 'html.parser')
-
         self.description = self.__get_document_description()
 
         # remove unnecessary elements
@@ -56,12 +54,13 @@ class Document:
         else:
             text = " ".join(text.stripped_strings)
 
-        self.tokens = self.__tokenize(text, ngrams=3)
-        self.single_tokens = self.__tokenize(text)
+        self.tokens = tokenize(text, ngrams=3)
+        self.single_tokens = tokenize(text, ngrams=1)
 
+        # TODO check if this is useful or not
         # extend the tokens by the description meta information
-        if self.description is not None:
-            self.tokens.extend(self.__tokenize(self.description))
+        # if self.description is not None:
+        #     self.tokens.extend(tokenize(self.description))
 
         self.language = self.__detect_document_language()
         self.links = self.__get_links()
@@ -79,14 +78,6 @@ class Document:
         else:
             return text
     
-    def __tokenize(self, text, ngrams=1):
-        """
-        removes stop words, punctuation and lemmatizes all words
-        """
-        text = self.__expand_doc(text)
-        tokens = nltk.tokenize.word_tokenize(text)
-        return tokenize(tokens, ngrams)
-
     def __detect_document_language(self):
         try:
             # first extract the lang property from the html tag
