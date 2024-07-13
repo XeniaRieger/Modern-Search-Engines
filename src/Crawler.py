@@ -207,6 +207,10 @@ class Crawler:
         while self.frontier:
             doc = None
             url = self.frontier.pop()
+
+            if any(w in url for w in ["javascript:linkTo_UnCryptMailto", "tel:+"]):
+                continue
+
             domain = Document.get_domain(url)
             if print_mode: print(url, end="\t")
 

@@ -2,7 +2,6 @@ from bs4 import BeautifulSoup
 import requests
 from urllib.parse import urlparse
 import hashlib
-import nltk
 import langdetect
 from langdetect.lang_detect_exception import LangDetectException
 
@@ -35,7 +34,11 @@ class Document:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9'
         }
-        res = requests.get(self.url, headers=headers)
+        res = requests.get(self.url, timeout=8, headers=headers)
+        content_type = res.headers.get('Content-Type', '')
+        if 'text/html' not in content_type:
+            raise Exception("Not HTML page")
+
         if res.status_code != 200:
             raise Exception("Request failed with status: " + str(res.status_code))
 
