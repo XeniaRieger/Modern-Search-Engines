@@ -20,6 +20,7 @@ class Document:
         self.soup = None
         self.sim_hash = None
         self.language = None
+        self.title = None
         self.description = None
         self.single_tokens = None  # single word tokens  no n-grams!
         self.raw_text = None       # the raw document text with stopwords etc
@@ -58,7 +59,7 @@ class Document:
         }
 
         if not self.__check_if_url_is_html(self.url, headers):
-            raise Exception("Not HTML page")
+            raise Exception("Invalid content type or timeout")
 
         res = requests.get(self.url, timeout=5, headers=headers)
 
@@ -67,6 +68,7 @@ class Document:
 
         self.raw_html = res.text
         self.soup = BeautifulSoup(res.text, 'html.parser')
+        self.title = self.__get_document_title()
         self.description = self.__get_document_description()
 
         # remove unnecessary elements
@@ -86,7 +88,6 @@ class Document:
         # extend the tokens by the description meta information
         # if self.description is not None:
         #     self.tokens.extend(tokenize(self.description))
-
         self.language = self.__detect_document_language()
         self.links = self.__get_links()
         self.sim_hash = self.__generate_sim_hash()
@@ -119,7 +120,10 @@ class Document:
             return list(sorted_langs.keys())[0]
         except LangDetectException:
             return None
-    
+
+    def __get_document_title(self):
+        return self.soup.title.text
+
     def __get_document_description(self):
         description_tag = self.soup.find('meta', attrs={'name': 'description'})
         if description_tag and 'content' in description_tag.attrs:
@@ -223,3 +227,4 @@ class Document:
             if token in words:
                 return True
         return False
+
