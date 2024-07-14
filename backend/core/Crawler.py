@@ -5,13 +5,17 @@ import collections
 import pickle
 from datetime import datetime
 from urllib.robotparser import RobotFileParser
+import socket
 
-sys.setrecursionlimit(50000) # for pickle save
+sys.setrecursionlimit(50000)  # for pickle save
+socket.setdefaulttimeout(5)   # when fetching robots.txt or document
 
 
 def save_pickle(obj, path):
-    with open(path, "wb") as f:
+    temp_path = path + ".temp"
+    with open(temp_path, "wb") as f:
         pickle.dump(obj, f)
+    os.replace(temp_path, path)
 
 
 def load_pickle(path):
@@ -24,18 +28,6 @@ def save_text(text, path):
         text_file.write(text)
 
 
-def create_folder_structure():
-    # create folder for documents
-    parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
-    serialisation_folder = os.path.join(parent_path, "serialization")
-    documents_path1 = os.path.join(serialisation_folder, "documents", "pickle")
-    documents_path2 = os.path.join(serialisation_folder, "documents", "html")
-
-    for p in [serialisation_folder, documents_path1, documents_path2]:
-        if not os.path.exists(p):
-            os.makedirs(p)
-
-
 def hamming_distance(hash1, hash2):
     return bin(hash1 ^ hash2).count('1')
 
@@ -43,10 +35,10 @@ def hamming_distance(hash1, hash2):
 class Crawler:
 
     def __init__(self):
-        self.frontier = None                    # list of URLs to be crawled
-        self.DOC_UPDATE_THRESHOLD = 86400       # after how many seconds should a document be re-fetched
-        self.SAME_SITE_THRESHOLD = 100          # after how many crawls for a domain should we stop adding links to frontier
-        self.SITE_IRRELEVANCY_THRESHOLD = 100   # after how many CONSECUTIVE irrelevant crawls for a domain should we remove the domain from frontier
+        self.frontier = None                   # list of URLs to be crawled
+        self.DOC_UPDATE_THRESHOLD = 86400      # after how many seconds should a document be re-fetched
+        self.SAME_SITE_THRESHOLD = 150         # after how many crawls for a domain should we stop adding links to frontier
+        self.SITE_IRRELEVANCY_THRESHOLD = 50   # after how many CONSECUTIVE irrelevant crawls for a domain should we remove the domain from frontier
 
         # __crawl_state holds the robots.txt info and other data to check if crawling is allowed for a domain
         # for each site (base url) it stores:
@@ -55,7 +47,8 @@ class Crawler:
         #  - req_rate: the request rate as tuple of (amount, seconds) for this domain
         #  - robots_fp: the robots file parser object to check if a given path is allowed to crawl
         #  - total_crawls: the amount of pages that were crawled, incremented for each new crawl
-        #  - irrelevancy_counter: the amount of crawls for a domain that had no relevant content. This is reset if a relevant page is found (before the maximum is reached)
+        #  - irrelevancy_counter: the amount of crawls for a domain that had no relevant content.
+        #                         This is reset if a relevant page is found (before the maximum is reached)
         self.__crawl_state = {}
 
         # for each URL we store some metadata here
@@ -81,18 +74,30 @@ class Crawler:
                         self.frontier.appendleft(line.rstrip('\n'))
 
     def __save_crawl_state(self):
+        # we first write it to a temporary file, in case the program crashes during the pickle file write
+        # the renaming of a file is crash-safe atomic so after writing the temp file successfully we rename it
         parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
+        temp_path = os.path.join(parent_path, "serialization", "crawl_state.tmp")
         path = os.path.join(parent_path, "serialization", "crawl_state.pickle")
-        with open(path, 'wb') as f:
+        with open(temp_path, 'wb') as f:
             pickle.dump(self, f)
 
-    def __serialize_document(self, doc: Document):
+        renamed = False
+        while not renamed:
+            try:
+                os.replace(temp_path, path)
+                renamed = True
+            except PermissionError:
+                continue
+
+    def __serialize_document(self, doc: Document, save_html_file_extra):
         parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
         pickle_path = os.path.join(parent_path, "serialization", "documents", "pickle", f"{doc.url_hash}.pickle")
-        html_path = os.path.join(parent_path, "serialization", "documents", "html", f"{doc.url_hash}.html")
-
         save_pickle(doc, pickle_path)
-        save_text(doc.raw_html, html_path)
+
+        if save_html_file_extra:
+            html_path = os.path.join(parent_path, "serialization", "documents", "html", f"{doc.url_hash}.html")
+            save_text(doc.raw_html, html_path)
 
     # for debugging
     def __pretty_print_crawl_state(self):
@@ -102,7 +107,7 @@ class Crawler:
                 if key != "robots_fp":
                     print(f"\t{key}:  {str(value)}")
 
-    def is_allowed_to_crawl(self, url: str) -> int:
+    def __is_allowed_to_crawl(self, url: str) -> int:
         """
         Checks if the given site is allowed to be crawled and updates the attributes.
         It checks this by looking into the robots.txt file
@@ -112,6 +117,7 @@ class Crawler:
         returns: 2 if crawl delay or request limit is reached
         returns: 3 if maximum amount of crawls for the domain is reached
         returns: 4 if the maximum amount of irrelevant crawls for the domain is reached
+        returns: 5 if the site's robots.txt could not be reached
         """
         now = datetime.today()
         domain = Document.get_domain(url)
@@ -119,7 +125,9 @@ class Crawler:
         if domain not in self.__crawl_state:
             try:
                 robots_fp = Crawler.__get_robots_parser(url)
-            except:
+            except Exception as e:
+                if type(e).__name__ == "URLError":
+                    return 5
                 return 0
             self.__add_to_crawl_state(domain, robots_fp)
 
@@ -168,8 +176,6 @@ class Crawler:
         self.__crawl_state[domain] = {}
         self.__crawl_state[domain]["last_crawl"] = datetime.today()
         self.__crawl_state[domain]["robots_fp"] = robots_fp
-        self.__crawl_state[domain]["total_crawls"] = 0
-        self.__crawl_state[domain]['irrelevancy_counter'] = 0
 
         if crawl_req_rate is not None:
             self.__crawl_state[domain]["req_rate"] = crawl_req_rate
@@ -189,7 +195,7 @@ class Crawler:
             for l in links:
                 self.frontier.appendleft(l)
 
-    def has_similar_document(self, to_check: Document, threshold=5):
+    def __has_similar_document(self, to_check: Document, threshold=5):
         for url, doc_idx in self.__doc_metadata.items():
             if url != to_check.url and hamming_distance(doc_idx["sim_hash"], to_check.sim_hash) < threshold:
                 return True
@@ -202,7 +208,25 @@ class Crawler:
             "last_crawled": doc.last_crawled,
         }
 
-    def crawl(self, print_mode: bool):
+    def __remove_domain_from_frontier(self, domain):
+        for link in [u for u in self.frontier if Document.get_domain(u) == domain]:
+            self.frontier.remove(link)
+
+    def __create_folder_structure(self, save_html_file_extra):
+        parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
+        serialisation_folder = os.path.join(parent_path, "serialization")
+        documents_path = os.path.join(serialisation_folder, "documents", "pickle")
+        for p in [serialisation_folder, documents_path]:
+            if not os.path.exists(p):
+                os.makedirs(p)
+
+        if save_html_file_extra:
+            html_path = os.path.join(serialisation_folder, "documents", "html")
+            if not os.path.exists(html_path):
+                os.makedirs(html_path)
+
+    def crawl(self, print_mode: bool, save_html_file_extra: False):
+        self.__create_folder_structure(save_html_file_extra)
 
         while self.frontier:
             doc = None
@@ -225,7 +249,7 @@ class Crawler:
 
             try:
                 # check crawl rule of robots.txt
-                crawl_check = self.is_allowed_to_crawl(url)
+                crawl_check = self.__is_allowed_to_crawl(url)
 
                 if crawl_check == 0:    # disallowed
                     if print_mode: print("not allowed")
@@ -236,23 +260,25 @@ class Crawler:
                     continue
                 elif crawl_check == 3:  # remove the urls with same domain from the frontier
                     if print_mode: print(f"maximum crawl amount for {domain} reached, removing all links from this domain")
-                    for link in [u for u in self.frontier if Document.get_domain(u) == domain]:
-                        self.frontier.remove(link)
+                    self.__remove_domain_from_frontier(domain)
                     continue
                 elif crawl_check == 4:  # remove the urls with same domain from the frontier
                     if print_mode: print(f"maximum irrelevancy counter for {domain} reached, removing all links from this domain")
-                    for link in [u for u in self.frontier if Document.get_domain(u) == domain]:
-                        self.frontier.remove(link)
+                    self.__remove_domain_from_frontier(domain)
+                    continue
+                elif crawl_check == 5:
+                    if print_mode: print(f"site's robots.txt cannot be reached")
+                    self.__remove_domain_from_frontier(domain)
                     continue
 
-                doc = Document(url)
+                doc = Document(url, save_html_file_extra)
 
                 # check sim_hashes, if no collision + language is english and doc related to Tü -> store doc in index
                 if not doc.is_relevant:
                     self.__crawl_state[domain]['irrelevancy_counter'] = self.__crawl_state[domain].get("irrelevancy_counter", 0) + 1
                     if print_mode: print(f"document not relevant, irrelevancy_counter for domain: {self.__crawl_state[domain]['irrelevancy_counter']}")
                     continue
-                elif self.has_similar_document(doc):
+                elif self.__has_similar_document(doc):
                     if print_mode: print("similar document found")
                     continue
 
@@ -262,6 +288,7 @@ class Crawler:
 
                 # reset the irrelevancy_counter
                 self.__crawl_state[domain]['irrelevancy_counter'] = 0
+                self.__crawl_state[domain]['connection_errors'] = 0
                 if print_mode:
                     print("indexed + added to frontier")
 
@@ -271,12 +298,10 @@ class Crawler:
                 continue
             finally:
                 if doc is not None:
-                    self.__serialize_document(doc)
+                    self.__serialize_document(doc, save_html_file_extra)
                 self.__save_crawl_state()
 
 
 if __name__ == '__main__':
-    create_folder_structure()
-
     crawler = Crawler()
-    crawler.crawl(print_mode=True)
+    crawler.crawl(print_mode=True, save_html_file_extra=False)

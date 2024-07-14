@@ -2,3 +2,5 @@ beautifulsoup4==4.8.2
 nltk==3.6.7
 langdetect==1.0.7
 requests==2.31.0
+django
+djangorestframework

@@ -5,7 +5,7 @@ import os
 import pickle
 from Tokenizer import tokenize
 from Doc2Query import doc_2_query_minus
-
+from BM25Ranker import BM25Ranker
 
 def hamming_distance(hash1, hash2):
     return bin(hash1 ^ hash2).count('1')
@@ -21,42 +21,24 @@ def create_float_defaultdict():
     return collections.defaultdict(float)
 
 
-def load_index(path):
-    with open(path, 'rb') as f:
-        return pickle.load(f)
-
-
 class DocumentIndex:
 
     def __init__(self):
         self.total_documents = 0
+        self.avg_doc_length = 0
+
         self.inverted_index = collections.defaultdict(set)
 
-        self.__tf = collections.defaultdict(create_int_defaultdict)
-        self.__df = collections.defaultdict(int)
-        self.__idf = collections.defaultdict(float)
-        self.__tfidf = collections.defaultdict(create_float_defaultdict)
-        self.__avg_doc_length = 0
+        self.tf = collections.defaultdict(create_int_defaultdict)
+        self.df = collections.defaultdict(int)
+        self.idf = collections.defaultdict(float)
+        self.tfidf = collections.defaultdict(create_float_defaultdict)
 
-    def get_inverted_index(self):
-        return self.__inverted_index
-
-    def get_tf(self):
-        return self.__tf
-
-    def get_idf(self):
-        self.calculate_idf()
-        return self.__idf
-
-    def get_df(self):
-        return self.__df
-
-    def get_avg_doc_length(self):
-        return self.__avg_doc_length
+        self.__bm25_ranker = BM25Ranker(self)
 
     def create_index_for_documents(self, documents_path, ngrams=1, use_doc2query=True):
         for root, dirs, files in os.walk(documents_path):
-            for file in files:
+            for file in files[:20]:
                 if file.endswith('.pickle'):
                     try:
                         with open(os.path.join(root, file), 'rb') as f:
@@ -65,6 +47,7 @@ class DocumentIndex:
                         print(str(e))
                         continue
         self.__calculate_tfidf()
+        self.__bm25_ranker.calculate_bm25_doc_term()
         print("index created.")
 
     def add(self, doc: Document, ngrams, use_doc2query):
@@ -80,27 +63,26 @@ class DocumentIndex:
             tokens = single_tokens
 
         for token in tokens:
-            self.__tf[doc.url][token] += 1
+            self.tf[doc.url_hash][token] += 1
 
         for token in set(tokens):
-            self.__df[token] += 1
+            self.df[token] += 1
+            self.inverted_index[token].add(doc.url_hash)
 
-            if doc.url not in self.inverted_index[token]:
-                self.inverted_index[token].add(doc.url)
+        # update average of document length
+        self.avg_doc_length = (self.avg_doc_length * (self.total_documents - 1) + len(tokens)) / self.total_documents
 
-        # running average of document length
-        self.__avg_doc_length = (self.__avg_doc_length * (self.total_documents - 1) + len(
-            doc.tokens)) / self.total_documents
+        print(f"added {doc.url}")
 
-    def calculate_idf(self):
-        for term, count in self.__df.items():
-            self.__idf[term] = math.log(self.total_documents / count)
+    def __calculate_idf(self):
+        for term, count in self.df.items():
+            self.idf[term] = math.log(self.total_documents / count)
 
     def __calculate_tfidf(self):
-        self.calculate_idf()
-        for doc_id, terms in self.__tf.items():
+        self.__calculate_idf()
+        for doc_id, terms in self.tf.items():
             for term, count in terms.items():
-                self.__tfidf[doc_id][term] = count * self.__idf[term]
+                self.tfidf[doc_id][term] = count * self.idf[term]
 
     def __calculate_query_tfidf(self, query_tokens):
         query_tf = collections.defaultdict(int)
@@ -109,8 +91,8 @@ class DocumentIndex:
 
         query_tfidf = collections.defaultdict(float)
         for token, count in query_tf.items():
-            if token in self.__idf:
-                query_tfidf[token] = count * self.__idf[token]
+            if token in self.idf:
+                query_tfidf[token] = count * self.idf[token]
         return query_tfidf
 
     def __score_documents(self, query_tfidf):
@@ -118,20 +100,37 @@ class DocumentIndex:
         for token, query_score in query_tfidf.items():
             if token in self.inverted_index:
                 for doc_id in self.inverted_index[token]:
-                    scores[doc_id] += query_score * self.__tfidf[doc_id][token]
+                    scores[doc_id] += query_score * self.tfidf[doc_id][token]
         return scores
 
     def save(self, path):
-        with open(path, 'wb') as f:
+        tmp_path = path + ".tmp"
+        with open(tmp_path, 'wb') as f:
             pickle.dump(self, f)
+
+        renamed = False
+        while not renamed:
+            try:
+                os.replace(tmp_path, path)
+                renamed = True
+            except PermissionError:
+                continue
+
+    @staticmethod
+    def load(path):
+        with open(path, 'rb') as f:
+            return pickle.load(f)
 
     def search(self, query: str, top_k: int = 10):
         print("PROCESSING QUERY: ", query)
-        query_tokens = tokenize(query.split())
+        query_tokens = tokenize(query)
         query_tfidf = self.__calculate_query_tfidf(query_tokens)
         scores = self.__score_documents(query_tfidf)
         ranked_docs = sorted(scores.items(), key=lambda item: item[1], reverse=True)
         return ranked_docs[:top_k]
+
+    def search_bm25(self, query):
+        return self.__bm25_ranker.search(query)
 
 
 if __name__ == '__main__':
@@ -139,10 +138,10 @@ if __name__ == '__main__':
     documents_path = os.path.join(parent_path, "serialization", "documents", "pickle")
 
     index = DocumentIndex()
-    index.create_index_for_documents(documents_path, ngrams=3, use_doc2query=True)
+    index.create_index_for_documents(documents_path, ngrams=3, use_doc2query=False)
 
     index.save(os.path.join(parent_path, "serialization", "index.pickle"))
 
     # load an already created index with:
-    # index = load_index(os.path.join(parent_path, "serialization", "index.pickle"))
+    # index = DocumentIndex.load(os.path.join(parent_path, "serialization", "index.pickle"))
 

@@ -13,6 +13,6 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --upgrade git+https://github.com/terrierteam/pyterrier_doc2query.git
 RUN pip install --upgrade git+https://github.com/terrierteam/pyterrier_dr.git
-COPY ./src/* .
+COPY ./core/ .
 
 CMD [ "python", "-u", "Crawler.py"]

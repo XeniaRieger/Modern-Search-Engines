@@ -1,18 +1,20 @@
 from bs4 import BeautifulSoup
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 import hashlib
 import langdetect
 from langdetect.lang_detect_exception import LangDetectException
-
-langdetect.DetectorFactory.seed = 123
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError
 from datetime import datetime
 from Tokenizer import tokenize
+
+langdetect.DetectorFactory.seed = 123
 
 
 class Document:
 
-    def __init__(self, url: str):
+    def __init__(self, url: str, save_html_file_extra=False):
         self.url = url
         self.url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
         self.soup = None
@@ -25,19 +27,40 @@ class Document:
         self.links = []
         self.last_crawled = None
         self.is_relevant = None
+        self.save_html_file_extra = save_html_file_extra
 
         # fetch document content and store the relevant information
         self.__fetch_document_content()
+
+
+    def __check_if_url_is_html(self, url, headers):
+        try:
+            res = requests.get(url, timeout=5, headers=headers, stream=True)
+            content_type = res.headers.get('Content-Type', '')
+            print(content_type, end="\t")
+
+            if 'text/html' not in content_type:
+                return False
+
+            # some sites claim to be text/html but are pdf thus we look into the first bytes
+            initial_bytes = res.raw.read(512)
+            if initial_bytes[:4] == b'%PDF':
+                return False
+
+            return True
+        except:
+            return False
 
     def __fetch_document_content(self):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9'
         }
-        res = requests.get(self.url, timeout=8, headers=headers)
-        content_type = res.headers.get('Content-Type', '')
-        if 'text/html' not in content_type:
+
+        if not self.__check_if_url_is_html(self.url, headers):
             raise Exception("Not HTML page")
+
+        res = requests.get(self.url, timeout=5, headers=headers)
 
         if res.status_code != 200:
             raise Exception("Request failed with status: " + str(res.status_code))
@@ -78,6 +101,7 @@ class Document:
             # if the "en" language is above 50%, the document is considered english
 
             html_tag = self.soup.find('html')
+            html_lang = None
             if hasattr(html_tag, 'attrs'):
                 html_lang = html_tag.attrs.get('lang', None)
                 if html_lang is not None:
@@ -151,16 +175,27 @@ class Document:
         domain = domain.replace("www.", "")
         return domain
 
+    @staticmethod
+    def __is_valid_url(url):
+        validate_url = URLValidator()
+        try:
+            validate_url(url)
+        except ValidationError as e:
+            return False
+        return True
+
     def __get_links(self):
         a_tags = self.soup.find_all("a", href=True)
         hrefs = set()
 
         for a in a_tags:
             href = a.get('href')
-            if Document.__is_external(href):
+            if Document.__is_external(href) and Document.__is_valid_url(href):
                 hrefs.add(href)
             else:
-                hrefs.add(Document.get_base_url(self.url) + href)
+                url = urljoin(Document.get_base_url(self.url), href)
+                if Document.__is_valid_url(url):
+                    hrefs.add(url)
         return hrefs
 
     def __getstate__(self):
@@ -169,6 +204,10 @@ class Document:
         if "soup" in state:
             del state["soup"]
 
+        if not self.save_html_file_extra and "raw_html" in state:
+            del state["raw_html"]
+
+        del state["save_html_file_extra"]
         return state
 
     def __check_relevant(self):

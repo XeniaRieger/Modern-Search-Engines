@@ -1,7 +1,6 @@
 from pyterrier_doc2query import Doc2Query, QueryScorer, QueryFilter
 from pyterrier_dr import ElectraScorer
 import pandas as pd
-import numpy as np
 import math
 import Document
 
