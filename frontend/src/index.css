@@ -1,13 +1,129 @@
-body {
+* {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+body {
+  margin: 0;
+  font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  width: 100%;
+  height: 100%;
+  background-color: black;
 }
+
+main {
+  background-color: black;
+  background: linear-gradient(to bottom, transparent 50%, rgb(0, 0, 0)), url("https://s1.1zoom.me/big0/962/Germany_Houses_Rivers_Marinas_Boats_Tuebingen_589316_1280x826.jpg");
+
+  background-repeat: no-repeat;
+  background-size: cover;
+  height: 100vh;
+}
+
+.logo {
+  color: rgb(255, 255, 255);
+  font-size: 40pt;
+}
+
+.content {
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+  background-color: rgba(0,0,0,0.8);
+  height: 100%;
+  width: 66vw;
+  gap: 3em;
+}
+
+a:link, a:visited {
+  color: rgb(228, 228, 228);
+  text-decoration: none;
+}
+
+.search-box {
+  width: 50%;
+  display: flex;
+  gap: 10px;
+}
+
+.search-box button {
+  border: none;
+  border-radius: 100%;
+  background-color: rgb(0, 0, 0);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+}
+
+.search-box button:hover {
+  background-color: rgb(44, 44, 44);
+  border: 1px solid rgba(52, 150, 255, 0.57);
+}
+
+.search-box button img {
+  color: white;
+  padding: 5px;
+  filter: invert(75%);
+  height: 70%;
+}
+
+input[type="text"] {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 11px;
+  padding-left: 30px;
+  border-radius: 30px;
+  background-color: rgb(0, 0, 0);
+  color: rgb(255, 255, 255);
+  width: 100%;
+  font-size: 13pt;
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border: 1px solid rgba(52, 150, 255, 0.57);
+}
+
+.results-list {
+  list-style: none;
+  text-align: left;
+  color: rgb(220, 220, 220);
+}
+
+.results-list li {
+  margin-bottom: 2.3em;
+}
+
+.url-box {
+  display: flex;
+  align-items: center;
+  font-size: 11pt;
+  text-decoration: none;
+}
+
+.url-box > img {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+  border-radius: 6px;
+  margin-right: 5px;
+}
+
+.doc-title {
+  font-size: 16pt;
+  font-weight: bold;
+}
+
+.doc-title:hover {
+  text-decoration: underline;
+}
+
+.doc-title:visited {
+  text-decoration: none;
+  color: rgb(167, 12, 167);
+}
+

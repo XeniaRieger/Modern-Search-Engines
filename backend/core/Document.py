@@ -8,6 +8,7 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from datetime import datetime
 from Tokenizer import tokenize
+import dateutil.parser
 
 langdetect.DetectorFactory.seed = 123
 
@@ -17,6 +18,7 @@ class Document:
     def __init__(self, url: str, save_html_file_extra=False):
         self.url = url
         self.url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
+        self.icon_url = None
         self.soup = None
         self.sim_hash = None
         self.language = None
@@ -27,30 +29,12 @@ class Document:
         self.raw_html = None
         self.links = []
         self.last_crawled = None
+        self.last_modified = None
         self.is_relevant = None
         self.save_html_file_extra = save_html_file_extra
 
         # fetch document content and store the relevant information
         self.__fetch_document_content()
-
-
-    def __check_if_url_is_html(self, url, headers):
-        try:
-            res = requests.get(url, timeout=5, headers=headers, stream=True)
-            content_type = res.headers.get('Content-Type', '')
-            print(content_type, end="\t")
-
-            if 'text/html' not in content_type:
-                return False
-
-            # some sites claim to be text/html but are pdf thus we look into the first bytes
-            initial_bytes = res.raw.read(512)
-            if initial_bytes[:4] == b'%PDF':
-                return False
-
-            return True
-        except:
-            return False
 
     def __fetch_document_content(self):
         headers = {
@@ -66,20 +50,27 @@ class Document:
         if res.status_code != 200:
             raise Exception("Request failed with status: " + str(res.status_code))
 
+        if len(res.text) > 5_000_000: # too long documents cause problems when parsing
+            raise Exception("Document too long")
+
         self.raw_html = res.text
         self.soup = BeautifulSoup(res.text, 'html.parser')
         self.title = self.__get_document_title()
+
+        # this relies on meta tags so it has do be done before deleting meta tags
         self.description = self.__get_document_description()
+        self.last_modified = self.__get_document_modified_date(res)
+        self.icon_url = self.__get_icon()
 
         # remove unnecessary elements
         for tag in self.soup(["script", "style", "link", "meta"]):
             tag.decompose()
 
-        text = self.soup.find("main")
-        if not text:
+        main_tag = self.soup.find("main")
+        if not main_tag:
             text = self.soup.get_text()
         else:
-            text = " ".join(text.stripped_strings)
+            text = " ".join(main_tag.stripped_strings)
 
         self.raw_text = text
         self.single_tokens = tokenize(text, ngrams=1)
@@ -93,6 +84,23 @@ class Document:
         self.sim_hash = self.__generate_sim_hash()
         self.last_crawled = datetime.today()
         self.is_relevant = self.__check_relevant()
+
+    def __check_if_url_is_html(self, url, headers):
+        try:
+            res = requests.get(url, timeout=5, headers=headers, stream=True)
+            content_type = res.headers.get('Content-Type', '')
+
+            if 'text/html' not in content_type:
+                return False
+
+            # some sites claim to be text/html but are pdf thus we look into the first bytes
+            initial_bytes = res.raw.read(512)
+            if initial_bytes[:4] == b'%PDF':
+                return False
+
+            return True
+        except:
+            return False
 
     def __detect_document_language(self):
         try:
@@ -202,18 +210,6 @@ class Document:
                     hrefs.add(url)
         return hrefs
 
-    def __getstate__(self):
-        state = self.__dict__
-        # exclude the soup from the pickle serialisation to reduce file size
-        if "soup" in state:
-            del state["soup"]
-
-        if not self.save_html_file_extra and "raw_html" in state:
-            del state["raw_html"]
-
-        del state["save_html_file_extra"]
-        return state
-
     def __check_relevant(self):
         words = ["tübingen", "tuebingen", "tubingen"]
 
@@ -228,3 +224,50 @@ class Document:
                 return True
         return False
 
+    def __get_document_modified_date(self, res):
+        try:
+            if 'Last-Modified' in res.headers:
+                date = res.headers['Last-Modified']
+                return dateutil.parser.parse(date)
+
+            # we prioritize the modified time over the published time
+            modified_tag = self.soup.find('meta', property='article:modified_time')
+            if modified_tag and 'content' in modified_tag.attrs:
+                date = modified_tag['content']
+                return dateutil.parser.parse(date)
+
+            publication_tag = self.soup.find('meta', property='article:published_time')
+            if publication_tag and 'content' in publication_tag.attrs:
+                date = publication_tag['content']
+                return dateutil.parser.parse(date)
+        except:
+            print("could not parse date")
+            return None
+
+        return None
+
+    def __get_icon(self):
+        for rel in ['icon', 'shortcut icon', 'apple-touch-icon']:
+            link_tag = self.soup.find('link', rel=rel)
+            if link_tag is None:
+                continue
+            if 'href' in link_tag.attrs:
+                href = link_tag.attrs['href']
+                if Document.__is_external(href):
+                    return href
+                else:
+                    return urljoin(Document.get_base_url(self.url), href)
+
+        return None
+
+    def __getstate__(self):
+        state = self.__dict__
+        # exclude the soup from the pickle serialisation to reduce file size
+        if "soup" in state:
+            del state["soup"]
+
+        if not self.save_html_file_extra and "raw_html" in state:
+            del state["raw_html"]
+
+        del state["save_html_file_extra"]
+        return state
