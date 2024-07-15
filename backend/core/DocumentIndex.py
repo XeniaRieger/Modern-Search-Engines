@@ -28,17 +28,19 @@ class DocumentIndex:
         self.avg_doc_length = 0
 
         self.inverted_index = collections.defaultdict(set)
-
+        self.urls = collections.defaultdict(str)
         self.tf = collections.defaultdict(create_int_defaultdict)
+        self.titles = collections.defaultdict(list)
         self.df = collections.defaultdict(int)
         self.idf = collections.defaultdict(float)
         self.tfidf = collections.defaultdict(create_float_defaultdict)
+        self.headings = collections.defaultdict(list)
 
         self.__bm25_ranker = BM25Ranker(self)
 
     def create_index_for_documents(self, documents_path, ngrams=1, use_doc2query=True):
         for root, dirs, files in os.walk(documents_path):
-            for file in files[:20]:
+            for file in files:
                 if file.endswith('.pickle'):
                     try:
                         with open(os.path.join(root, file), 'rb') as f:
@@ -68,6 +70,15 @@ class DocumentIndex:
         for token in set(tokens):
             self.df[token] += 1
             self.inverted_index[token].add(doc.url_hash)
+
+        if doc.title is not None:
+            self.titles[doc.url_hash] = doc.title
+
+        if doc.headings is not None:
+            self.headings[doc.url_hash] = doc.headings
+
+        self.urls[doc.url_hash] = doc.url
+
 
         # update average of document length
         self.avg_doc_length = (self.avg_doc_length * (self.total_documents - 1) + len(tokens)) / self.total_documents
@@ -138,7 +149,7 @@ if __name__ == '__main__':
     documents_path = os.path.join(parent_path, "serialization", "documents", "pickle")
 
     index = DocumentIndex()
-    index.create_index_for_documents(documents_path, ngrams=3, use_doc2query=False)
+    index.create_index_for_documents(documents_path, ngrams=1, use_doc2query=False)
 
     index.save(os.path.join(parent_path, "serialization", "index.pickle"))
 

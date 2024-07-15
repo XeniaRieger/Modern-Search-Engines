@@ -24,6 +24,8 @@ class Document:
         self.single_tokens = None  # single word tokens  no n-grams!
         self.raw_text = None       # the raw document text with stopwords etc
         self.raw_html = None
+        self.title = None
+        self.headings = []
         self.links = []
         self.last_crawled = None
         self.is_relevant = None
@@ -72,6 +74,9 @@ class Document:
         # remove unnecessary elements
         for tag in self.soup(["script", "style", "link", "meta"]):
             tag.decompose()
+
+        self.extract_fields()
+
 
         text = self.soup.find("main")
         if not text:
@@ -216,10 +221,25 @@ class Document:
         if self.language is None or self.language != "en":
             return False
 
-        if any([w in self.url.lower() for w in words]):
+        url_lower = self.url.lower()
+        if any(w in url_lower for w in words):
             return True
 
         for token in self.single_tokens:
             if token in words:
                 return True
         return False
+
+    '''
+    extracts the tokens in html tags 'title' and headings and stores them in self.title and self.headings
+    '''
+    def extract_fields(self):
+        if self.soup.find("title") is not None:
+            self.title = tokenize(self.soup.find("title").text,ngrams=1)
+
+        headings = self.soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+        for heading in headings:
+            self.headings.extend(tokenize(heading.text, ngrams = 1))
+
+
+
