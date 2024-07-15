@@ -57,6 +57,11 @@ class DocumentIndex:
         if use_doc2query:
             single_tokens.extend(doc_2_query_minus(doc))
 
+        # TODO check if this is useful or not
+        # extend the tokens by the description meta information
+        # if doc.description is not None:
+        #     single_tokens.extend(tokenize(doc.description))
+
         if ngrams > 1:
             tokens = tokenize(' '.join(single_tokens), ngrams)
         else:
@@ -130,7 +135,23 @@ class DocumentIndex:
         return ranked_docs[:top_k]
 
     def search_bm25(self, query):
-        return self.__bm25_ranker.search(query)
+        parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
+        documents_path = os.path.join(parent_path, "serialization", "documents", "pickle")
+
+        docs = []
+        doc_ids = self.__bm25_ranker.search(query, top_k=100)
+        for (doc_id, score) in doc_ids:
+            with open(os.path.join(documents_path, doc_id+".pickle"), 'rb') as f:
+                doc = pickle.load(f)
+                docs.append({
+                    "url": doc.url,
+                    "title": doc.title,
+                    "description": doc.description,
+                    "icon_url": doc.icon_url,
+                    "score": score
+                })
+        return docs
+
 
 
 if __name__ == '__main__':
@@ -138,7 +159,7 @@ if __name__ == '__main__':
     documents_path = os.path.join(parent_path, "serialization", "documents", "pickle")
 
     index = DocumentIndex()
-    index.create_index_for_documents(documents_path, ngrams=3, use_doc2query=False)
+    index.create_index_for_documents(documents_path, ngrams=1, use_doc2query=False)
 
     index.save(os.path.join(parent_path, "serialization", "index.pickle"))
 

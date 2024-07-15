@@ -47,7 +47,7 @@ function App() {
               {results.map((doc, index) => (
                 <li key={index}>
                   <a className='url-box' href={doc.url}>
-                    <img src={doc.icon_url} />
+                    {doc.icon_url && <img src={doc.icon_url} />}
                     <p>{doc.url}</p>
                   </a>
                   <a className="doc-title" href={doc.url}>{doc.title}</a>

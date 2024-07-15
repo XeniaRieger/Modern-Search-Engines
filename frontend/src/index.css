@@ -37,8 +37,14 @@ main {
   padding: 20px;
   background-color: rgba(0,0,0,0.8);
   height: 100%;
-  width: 66vw;
+  width: 66%;
   gap: 3em;
+}
+
+@media screen and (max-width: 1200px) {
+  .content {
+    width: 100%;
+  }
 }
 
 a:link, a:visited {
@@ -92,6 +98,7 @@ input[type="text"]:focus {
   list-style: none;
   text-align: left;
   color: rgb(220, 220, 220);
+  margin: 1em 5em;
 }
 
 .results-list li {
