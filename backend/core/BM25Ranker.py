@@ -23,8 +23,8 @@ class BM25Ranker:
     def __query_bm25(self, query_tokens):
         query_bm25 = collections.defaultdict(float)
         for doc_id in self.__index.tf:
-            for qi in query_tokens:
-                query_bm25[doc_id] += self.__bm25_doc_term[doc_id][qi]
+            for term in query_tokens:
+                query_bm25[doc_id] += self.__bm25_doc_term[doc_id][term]
         return query_bm25
 
     def search(self, query: str, top_k: int = 10):

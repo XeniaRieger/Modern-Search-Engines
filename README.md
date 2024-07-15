@@ -1,5 +1,5 @@
-To use the doc2query implementation download the models by running 
-pip install --upgrade git+https://github.com/terrierteam/pyterrier_doc2query.git
+To use the doc2query implementation download the models by running \
+pip install --upgrade git+https://github.com/terrierteam/pyterrier_doc2query.git\
 pip install --upgrade git+https://github.com/terrierteam/pyterrier_dr.git
 
 # General
@@ -10,18 +10,27 @@ The crawler is designed to respect the robots.txt file and crawl delays
  document tokens by the doc2query method.
 
 # Run Crawler
-To run the crawler execute ``python .\backend\core\Crawler.py``.
+To run the crawler execute 
+```
+cd backend/core
+python Crawler.py
+```
 The crawled documents are stored as pickle files inside ``serialization\documents``.
-The state of the crawler is also stored in this folder as ``crawl_state.pickle``.
+The state of the crawler is also stored in this folder as ``crawl_state.pickle``. When a crawl_state file already exists,
+the crawler will load the file and resume the crawling from the loaded frontier.
 
 # Run Index
-To index all documents execute ``python .\backend\core\DocumentIndex.py``. The generated index file
-is stored at ``serialization\documents\index.pickle``.
+To index all documents execute 
+```
+cd backend/core
+python DocumentIndex.py
+```
+The generated index file is stored at ``serialization\documents\index.pickle``.
 
 # Run REST API Server
 To start the django rest server:
 ```
-cd backend\SearchEngineServer
+cd backend/SearchEngineServer
 python manage.py runserver
 ```
 this will automatically load the index inside the serialization folder.
@@ -30,6 +39,7 @@ The server will listen on port 8000 to answer query requests.
 # Run React frontend
 ```
 cd frontend
+npm install
 npm start
 ```
 

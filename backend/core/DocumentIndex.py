@@ -38,7 +38,7 @@ class DocumentIndex:
 
     def create_index_for_documents(self, documents_path, ngrams=1, use_doc2query=True):
         for root, dirs, files in os.walk(documents_path):
-            for file in files[:20]:
+            for file in files:
                 if file.endswith('.pickle'):
                     try:
                         with open(os.path.join(root, file), 'rb') as f:
