@@ -1,3 +1,5 @@
+import math
+
 from bs4 import BeautifulSoup
 import requests
 from urllib.parse import urlparse, urljoin
@@ -8,6 +10,7 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from datetime import datetime
 from Tokenizer import tokenize
+from transformers import pipeline
 
 langdetect.DetectorFactory.seed = 123
 
@@ -26,6 +29,8 @@ class Document:
         self.raw_html = None
         self.title = None
         self.headings = []
+        self.bold = []
+        self.italics = []
         self.links = []
         self.last_crawled = None
         self.is_relevant = None
@@ -240,6 +245,7 @@ class Document:
         headings = self.soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
         for heading in headings:
             self.headings.extend(tokenize(heading.text, ngrams = 1))
+
 
 
 
