@@ -28,11 +28,13 @@ class DocumentIndex:
         self.avg_doc_length = 0
 
         self.inverted_index = collections.defaultdict(set)
-
+        self.urls = collections.defaultdict(str)
         self.tf = collections.defaultdict(create_int_defaultdict)
+        self.titles = collections.defaultdict(list)
         self.df = collections.defaultdict(int)
         self.idf = collections.defaultdict(float)
         self.tfidf = collections.defaultdict(create_float_defaultdict)
+        self.headings = collections.defaultdict(list)
 
         self.__bm25_ranker = BM25Ranker(self)
 
@@ -73,6 +75,15 @@ class DocumentIndex:
         for token in set(tokens):
             self.df[token] += 1
             self.inverted_index[token].add(doc.url_hash)
+
+        if doc.title is not None:
+            self.titles[doc.url_hash] = doc.title
+
+        if doc.headings is not None:
+            self.headings[doc.url_hash] = doc.headings
+
+        self.urls[doc.url_hash] = doc.url
+
 
         # update average of document length
         self.avg_doc_length = (self.avg_doc_length * (self.total_documents - 1) + len(tokens)) / self.total_documents
