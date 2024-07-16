@@ -42,13 +42,20 @@ To start the django rest server:
 cd backend/SearchEngineServer
 python manage.py runserver
 ```
-this will automatically load the index inside the serialization folder.
+This will automatically load the index inside the serialization folder.
 The server will listen on port 8000 to answer query requests.
 
 ## Run React frontend
+Starts the frontend on port 3000
 ```
 cd frontend
 npm install
 npm start
+```
+
+## Run batch retrieval
+```
+cd backend/core
+python batch_retrieve.py path/to/queryFile.txt path/to/resultList.txt
 ```
 

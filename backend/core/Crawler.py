@@ -252,22 +252,27 @@ class Crawler:
                 crawl_check = self.__is_allowed_to_crawl(url)
 
                 if crawl_check == 0:    # disallowed
-                    if print_mode: print("not allowed")
+                    if print_mode:
+                        print("not allowed")
                     continue
                 elif crawl_check == 2:  # if req limit violation put the url at the end of the frontier
-                    if print_mode: print("request limit violation")
+                    if print_mode:
+                        print("request limit violation")
                     self.frontier.appendleft(url)
                     continue
                 elif crawl_check == 3:  # remove the urls with same domain from the frontier
-                    if print_mode: print(f"maximum crawl amount for {domain} reached, removing all links from this domain")
+                    if print_mode:
+                        print(f"maximum crawl amount for {domain} reached, removing all links from this domain")
                     self.__remove_domain_from_frontier(domain)
                     continue
                 elif crawl_check == 4:  # remove the urls with same domain from the frontier
-                    if print_mode: print(f"maximum irrelevancy counter for {domain} reached, removing all links from this domain")
+                    if print_mode:
+                        print(f"maximum irrelevancy counter for {domain} reached, removing all links from this domain")
                     self.__remove_domain_from_frontier(domain)
                     continue
                 elif crawl_check == 5:
-                    if print_mode: print(f"site's robots.txt cannot be reached")
+                    if print_mode:
+                        print(f"site's robots.txt cannot be reached")
                     self.__remove_domain_from_frontier(domain)
                     continue
 
@@ -276,10 +281,12 @@ class Crawler:
                 # check sim_hashes, if no collision + language is english and doc related to Tü -> store doc in index
                 if not doc.is_relevant:
                     self.__crawl_state[domain]['irrelevancy_counter'] = self.__crawl_state[domain].get("irrelevancy_counter", 0) + 1
-                    if print_mode: print(f"document not relevant, irrelevancy_counter for domain: {self.__crawl_state[domain]['irrelevancy_counter']}")
+                    if print_mode:
+                        print(f"document not relevant, irrelevancy_counter for domain: {self.__crawl_state[domain]['irrelevancy_counter']}")
                     continue
                 elif self.__has_similar_document(doc):
-                    if print_mode: print("similar document found")
+                    if print_mode:
+                        print("similar document found")
                     continue
 
                 # SITE RELEVANT

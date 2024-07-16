@@ -126,20 +126,21 @@ class DocumentIndex:
         with open(path, 'rb') as f:
             return pickle.load(f)
 
-    def search(self, query: str, top_k: int = 10):
-        print("PROCESSING QUERY: ", query)
+    def retrieve(self, query: str, top_k: int = 10):
         query_tokens = tokenize(query)
         query_tfidf = self.__calculate_query_tfidf(query_tokens)
         scores = self.__score_documents(query_tfidf)
         ranked_docs = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-        return ranked_docs[:top_k]
+        return self.__get_documents(ranked_docs[:top_k])
 
-    def search_bm25(self, query):
+    def retrieve_bm25(self, query, top_k: int = 10):
+        doc_ids = self.__bm25_ranker.search(query, top_k)
+        return self.__get_documents(doc_ids)
+
+    def __get_documents(self, doc_ids):
         parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
         documents_path = os.path.join(parent_path, "serialization", "documents", "pickle")
-
         docs = []
-        doc_ids = self.__bm25_ranker.search(query, top_k=100)
         for (doc_id, score) in doc_ids:
             with open(os.path.join(documents_path, doc_id+".pickle"), 'rb') as f:
                 doc = pickle.load(f)
@@ -151,7 +152,6 @@ class DocumentIndex:
                     "score": score
                 })
         return docs
-
 
 
 if __name__ == '__main__':

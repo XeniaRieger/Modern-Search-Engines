@@ -12,6 +12,9 @@ function App() {
 
   const handleSearch = async (e) => {
     e.preventDefault();
+
+    if(!query) return;
+
     setResults([]);
     try {
       const response = await fetch('/search', {
