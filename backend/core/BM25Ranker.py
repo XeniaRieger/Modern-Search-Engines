@@ -31,7 +31,7 @@ class BM25Ranker:
         return query_bm25
 
     def search(self, query: str, top_k: int = 10):
-        query_tokens = tokenize(query)
+        query_tokens = tokenize_query(query)
         query_bm25 = self.__query_bm25(query_tokens)
         sorted_query_bm25 = sorted(query_bm25.items(), key=lambda item: item[1], reverse=True)
         return sorted_query_bm25[:top_k]

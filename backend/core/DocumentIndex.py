@@ -127,7 +127,7 @@ class DocumentIndex:
             return pickle.load(f)
 
     def retrieve(self, query: str, top_k: int = 10):
-        query_tokens = tokenize(query)
+        query_tokens = tokenize_query(query)
         query_tfidf = self.__calculate_query_tfidf(query_tokens)
         scores = self.__score_documents(query_tfidf)
         ranked_docs = sorted(scores.items(), key=lambda item: item[1], reverse=True)
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     documents_path = os.path.join(parent_path, "serialization", "documents", "pickle")
 
     index = DocumentIndex()
-    index.create_index_for_documents(documents_path, ngrams=1, use_doc2query=False)
+    index.create_index_for_documents(documents_path, ngrams=1, use_doc2query=True)
 
     index.save(os.path.join(parent_path, "serialization", "index.pickle"))
 
