@@ -90,7 +90,6 @@ class Document:
         self.links = self.__get_links()
         self.sim_hash = self.__generate_sim_hash()
         self.last_crawled = datetime.today()
-        self.is_relevant = self.__check_relevant()
 
     def __check_if_url_is_html(self, url, headers):
         try:
@@ -216,21 +215,6 @@ class Document:
                 if Document.__is_valid_url(url):
                     hrefs.add(url)
         return hrefs
-
-    def __check_relevant(self):
-        words = ["tübingen", "tuebingen", "tubingen"]
-
-        if self.language is None or self.language != "en":
-            return False
-
-        url_lower = self.url.lower()
-        if any(w in url_lower for w in words):
-            return True
-
-        for token in self.single_tokens:
-            if token in words:
-                return True
-        return False
 
     def __get_document_modified_date(self, res):
         try:

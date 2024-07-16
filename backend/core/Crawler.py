@@ -279,7 +279,7 @@ class Crawler:
                 doc = Document(url, save_html_file_extra)
 
                 # check sim_hashes, if no collision + language is english and doc related to Tü -> store doc in index
-                if not doc.is_relevant:
+                if not self.__check_relevant(doc):
                     self.__crawl_state[domain]['irrelevancy_counter'] = self.__crawl_state[domain].get("irrelevancy_counter", 0) + 1
                     if print_mode:
                         print(f"document not relevant, irrelevancy_counter for domain: {self.__crawl_state[domain]['irrelevancy_counter']}")
@@ -307,6 +307,25 @@ class Crawler:
                 if doc is not None:
                     self.__serialize_document(doc, save_html_file_extra)
                 self.__save_crawl_state()
+
+    def __check_relevant(self, doc):
+        words = ["tübingen", "tuebingen", "tubingen"]
+
+
+
+        if doc.language is None or doc.language != "en":
+            return False
+
+
+
+        url_lower = doc.url.lower()
+        if any(w in url_lower for w in words):
+            return True
+
+        for token in doc.single_tokens:
+            if token in words:
+                return True
+        return False
 
 
 if __name__ == '__main__':
