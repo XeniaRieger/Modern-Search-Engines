@@ -30,14 +30,29 @@ class Document:
         self.raw_text = None       # the raw document text with stopwords etc
         self.raw_html = None
         self.title = None
-        self.headings = []
-        self.bold = []
-        self.italics = []
         self.links = []
         self.last_crawled = None
         self.last_modified = None
         self.is_relevant = None
         self.save_html_file_extra = save_html_file_extra
+        self.document_fields = {
+            "title": "",
+            "headings": {
+                "h1": [],
+                "h2": [],
+                "h3": [],
+                "h4": [],
+                "h5": [],
+                "h6": []
+            },
+            "text_decorations": {
+                "bold": [],
+                "italic": [],
+                "underline": [],
+                "strike": []
+            }
+        }
+
 
         # fetch document content and store the relevant information
         self.__fetch_document_content()
@@ -269,12 +284,29 @@ class Document:
         '''
         extracts the tokens in html tags 'title' and headings and stores them in self.title and self.headings
         '''
+        # Extract title
         if self.soup.find("title") is not None:
-            self.title = tokenize(self.soup.find("title").text,ngrams=1)
+            self.document_fields['title'] = self.soup.title.text.strip()
 
-        headings = self.soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
-        for heading in headings:
-            self.headings.extend(tokenize(heading.text, ngrams = 1))
+        # Extract headings
+        for level in range(1, 7):
+            heading_tag = f"h{level}"
+            headings = self.soup.find_all(heading_tag)
+            self.document_fields["headings"][heading_tag] = [heading.text.strip() for heading in headings]
+
+        # Extract text decorations
+        self.document_fields["text_decorations"]["bold"] = [
+            bold.text.strip() for bold in self.soup.find_all(['b', 'strong'])
+        ]
+        self.document_fields["text_decorations"]["italic"] = [
+            italic.text.strip() for italic in self.soup.find_all(['i', 'em'])
+        ]
+        self.document_fields["text_decorations"]["underline"] = [
+            underline.text.strip() for underline in self.soup.find_all('u')
+        ]
+        self.document_fields["text_decorations"]["strike"] = [
+            strike.text.strip() for strike in self.soup.find_all(['s', 'strike', 'del'])
+        ]
 
 
 
