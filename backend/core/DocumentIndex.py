@@ -6,10 +6,10 @@ import pickle
 from Tokenizer import tokenize
 from Doc2Query import doc_2_query_minus
 from BM25Ranker import BM25Ranker
+from datetime import *
 
 def hamming_distance(hash1, hash2):
     return bin(hash1 ^ hash2).count('1')
-
 
 # needed for pickle
 def create_int_defaultdict():
@@ -20,13 +20,16 @@ def create_int_defaultdict():
 def create_float_defaultdict():
     return collections.defaultdict(float)
 
+def default_heading_structure():
+    return collections.defaultdict(list)
+
 
 class DocumentIndex:
 
     def __init__(self):
         self.total_documents = 0
         self.avg_doc_length = 0
-
+        self.avg_date = None
         self.inverted_index = collections.defaultdict(set)
         self.urls = collections.defaultdict(str)
         self.tf = collections.defaultdict(create_int_defaultdict)
@@ -34,7 +37,10 @@ class DocumentIndex:
         self.df = collections.defaultdict(int)
         self.idf = collections.defaultdict(float)
         self.tfidf = collections.defaultdict(create_float_defaultdict)
-        self.headings = collections.defaultdict(list)
+        self.headings = collections.defaultdict(default_heading_structure)
+        self.bolds = collections.defaultdict(list)
+        self.italics = collections.defaultdict(list)
+        self.doc_dates = collections.defaultdict(float)
 
         self.__bm25_ranker = BM25Ranker(self)
 
@@ -76,17 +82,39 @@ class DocumentIndex:
             self.df[token] += 1
             self.inverted_index[token].add(doc.url_hash)
 
-        if doc.title is not None:
-            self.titles[doc.url_hash] = doc.title
+        if doc.document_fields['title'] is not None:
+            self.titles[doc.url_hash] = tokenize(doc.document_fields['title'])
 
-        if doc.headings is not None:
-            self.headings[doc.url_hash] = doc.headings
+        if doc.document_fields['headings'] is not None:
+            for h in doc.document_fields['headings']:
+                for h_ in doc.document_fields['headings'][h]:
+                    self.headings[doc.url_hash][h].extend(tokenize(h_))
+
+        if doc.document_fields['text_decorations']['bold'] is not None:
+            for b in doc.document_fields['text_decorations']['bold']:
+                self.bolds[doc.url_hash].extend(tokenize(b))
+
+        if doc.document_fields['text_decorations']['italic'] is not None:
+            for i in doc.document_fields['text_decorations']['italic']:
+                self.bolds[doc.url_hash].extend(tokenize(i))
+
 
         self.urls[doc.url_hash] = doc.url
 
 
         # update average of document length
         self.avg_doc_length = (self.avg_doc_length * (self.total_documents - 1) + len(tokens)) / self.total_documents
+
+        if doc.last_modified is None:
+            last_mod_timestamp = self.avg_date
+        else:
+            self.doc_dates[doc.url_hash] = datetime.timestamp(doc.last_modified)
+            last_mod_timestamp = datetime.timestamp(doc.last_modified)
+        if self.avg_date is None:
+            self.avg_date = last_mod_timestamp
+        else:
+            self.avg_date = (self.avg_date + (last_mod_timestamp - self.avg_date)/self.total_documents)
+
 
         print(f"added {doc.url}")
 
@@ -170,7 +198,7 @@ if __name__ == '__main__':
     documents_path = os.path.join(parent_path, "serialization", "documents", "pickle")
 
     index = DocumentIndex()
-    index.create_index_for_documents(documents_path, ngrams=1, use_doc2query=True)
+    index.create_index_for_documents(documents_path, ngrams=1, use_doc2query=False)
 
     index.save(os.path.join(parent_path, "serialization", "index.pickle"))
 

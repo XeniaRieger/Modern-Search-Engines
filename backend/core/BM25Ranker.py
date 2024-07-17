@@ -1,8 +1,10 @@
 import collections
+import math
 import os
 import pickle
+from datetime import datetime
 
-from Tokenizer import tokenize
+from Tokenizer import tokenize, tokenize_query
 
 
 def create_float_defaultdict():
@@ -19,6 +21,7 @@ class BM25Ranker:
         self.__bm25_doc_term = collections.defaultdict(create_float_defaultdict)
         self.k1 = k1
         self.b = b
+        self.l = 0.5 # lambda parameter for exponential distribution for weighting recent document vs older
         # calculate average date
 
     def calculate_average_date(self):
@@ -39,17 +42,18 @@ class BM25Ranker:
     def calculate_bm25_doc_term(self):
         for doc_id, terms in self.__index.tf.items():
             doc_len = sum(terms.values())
-            for term, tf in terms.items():
-                w = 1
-                if term in self.__index.titles[doc_id]:
-                    w += 1
-                if term in self.__index.headings[doc_id]:
-                    w += 0.5
-                # add bold, italics
-                #time_factor = e**(-lambda * (now - doc_date)) lambda zwischen 0 und 1
-                # doc_date is avg date if NONE
 
-                fraction = (tf * (self.k + 1)) / (tf + self.k * (1 - self.b + self.b * (doc_len / self.__index.avg_doc_length)))
+            doc_date = self.__index.doc_dates[doc_id] if self.__index.doc_dates[doc_id] != 0.0 else self.__index.avg_date
+            now = datetime.now().timestamp()
+            exponent = -self.l * (now - doc_date)/3600
+            time_factor = math.exp(exponent) # lambda zwischen 0 und 1
+            time_factor = 1
+
+            breaktg = 0
+            for term, tf in terms.items():
+                w = self.get_fields_weight(term, doc_id)
+
+                fraction = (tf * (self.k1 + 1)) / (tf + self.k1 * (1 - self.b + self.b * (doc_len / self.__index.avg_doc_length)))
                 self.__bm25_doc_term[doc_id][term] = time_factor * w * self.__index.idf[term] * fraction
 
     def __query_bm25(self, query_tokens):
@@ -69,5 +73,17 @@ class BM25Ranker:
         for item in sorted_query_bm25[:top_k]:
             print(self.__index.urls[item[0]])
         return sorted_query_bm25[:top_k]
+
+    def get_fields_weight(self, term, doc_id):
+        w = 1
+        if term in self.__index.titles[doc_id]:
+            w *= 1.5
+        if term in self.__index.headings[doc_id]:
+            w *= 1.25
+        if term in self.__index.bolds[doc_id]:
+            w *= 1.1
+        if term in self.__index.italics[doc_id]:
+            w *= 1.1
+        return w
 
 
