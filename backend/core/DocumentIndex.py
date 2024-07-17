@@ -3,7 +3,7 @@ import collections
 import math
 import os
 import pickle
-from Tokenizer import tokenize
+from Tokenizer import tokenize, tokenize_query
 from Doc2Query import doc_2_query_minus
 from BM25Ranker import BM25Ranker
 
@@ -147,7 +147,8 @@ class DocumentIndex:
         return self.__get_documents(ranked_docs[:top_k])
 
     def retrieve_bm25(self, query, top_k: int = 10):
-        doc_ids = self.__bm25_ranker.search(query, top_k)
+        query_tokens = tokenize_query(query)
+        doc_ids = self.__bm25_ranker.search(query_tokens, top_k)
         return self.__get_documents(doc_ids)
 
     def __get_documents(self, doc_ids):
