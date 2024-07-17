@@ -44,7 +44,9 @@ class DocumentIndex:
                 if file.endswith('.pickle'):
                     try:
                         with open(os.path.join(root, file), 'rb') as f:
-                            self.add(pickle.load(f), ngrams, use_doc2query)
+                            doc = pickle.load(f)
+                            if doc.is_relevant:
+                                self.add(doc, ngrams, use_doc2query)
                     except Exception as e:
                         print(str(e))
                         continue

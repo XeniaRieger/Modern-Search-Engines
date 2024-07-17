@@ -2,9 +2,6 @@ import collections
 import os
 import pickle
 
-from Tokenizer import tokenize
-
-
 def create_float_defaultdict():
     return collections.defaultdict(float)
 
@@ -35,7 +32,6 @@ class BM25Ranker:
 
 
 
-
     def calculate_bm25_doc_term(self):
         for doc_id, terms in self.__index.tf.items():
             doc_len = sum(terms.values())
@@ -46,11 +42,11 @@ class BM25Ranker:
                 if term in self.__index.headings[doc_id]:
                     w += 0.5
                 # add bold, italics
-                #time_factor = e**(-lambda * (now - doc_date)) lambda zwischen 0 und 1
+                # time_weight = math.exp(-lambda * (now - doc_date))  lambda am besten kleine werte wie 0.01
                 # doc_date is avg date if NONE
 
-                fraction = (tf * (self.k + 1)) / (tf + self.k * (1 - self.b + self.b * (doc_len / self.__index.avg_doc_length)))
-                self.__bm25_doc_term[doc_id][term] = time_factor * w * self.__index.idf[term] * fraction
+                fraction = (tf * (self.k1 + 1)) / (tf + self.k1 * (1 - self.b + self.b * (doc_len / self.__index.avg_doc_length)))
+                self.__bm25_doc_term[doc_id][term] = time_weight * w * self.__index.idf[term] * fraction
 
     def __query_bm25(self, query_tokens):
         query_bm25 = collections.defaultdict(float)
@@ -61,8 +57,7 @@ class BM25Ranker:
                         query_bm25[doc_id] += self.__bm25_doc_term[doc_id][term]
         return query_bm25
 
-    def search(self, query: str, top_k: int = 10):
-        query_tokens = tokenize_query(query)
+    def search(self, query_tokens, top_k: int = 10):
         query_bm25 = self.__query_bm25(query_tokens)
         sorted_query_bm25 = sorted(query_bm25.items(), key=lambda item: item[1], reverse=True)
         self.calculate_bm25_doc_term()
