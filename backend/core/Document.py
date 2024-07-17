@@ -48,8 +48,7 @@ class Document:
             "text_decorations": {
                 "bold": [],
                 "italic": [],
-                "underline": [],
-                "strike": []
+                "underline": []
             }
         }
 
@@ -295,19 +294,14 @@ class Document:
             self.document_fields["headings"][heading_tag] = [heading.text.strip() for heading in headings]
 
         # Extract text decorations
-        self.document_fields["text_decorations"]["bold"] = [
-            bold.text.strip() for bold in self.soup.find_all(['b', 'strong'])
-        ]
-        self.document_fields["text_decorations"]["italic"] = [
-            italic.text.strip() for italic in self.soup.find_all(['i', 'em'])
-        ]
-        self.document_fields["text_decorations"]["underline"] = [
-            underline.text.strip() for underline in self.soup.find_all('u')
-        ]
-        self.document_fields["text_decorations"]["strike"] = [
-            strike.text.strip() for strike in self.soup.find_all(['s', 'strike', 'del'])
-        ]
+        bold_tags = self.soup.find_all(['b', 'strong'])
+        self.document_fields["text_decorations"]["bold"] = [tag.get_text(strip=True) for tag in bold_tags]
+        print(self.document_fields["text_decorations"]["bold"])
 
+        # Extract text content within <i> and <em> tags
+        italic_tags = self.soup.find_all(['i', 'em'])
+        self.document_fields["text_decorations"]["italic"] = [tag.get_text(strip=True) for tag in italic_tags]
 
-
-
+        # Extract text content within <u> tags
+        underline_tags = self.soup.find_all('u')
+        self.document_fields["text_decorations"]["underline"] = [tag.get_text(strip=True) for tag in underline_tags]
