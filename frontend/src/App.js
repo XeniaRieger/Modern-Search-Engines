@@ -2,9 +2,17 @@ import { useState } from 'react'
 import './App.css';
 
 function App() {
+
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  function textToSpeech(text) {
+    window.speechSynthesis.cancel();
+    let synth = new SpeechSynthesisUtterance(text)
+    synth.lang = 'en-US';
+    window.speechSynthesis.speak(synth);
+  }
 
   const handleInputChange = (e) => {
     setQuery(e.target.value);
@@ -60,7 +68,15 @@ function App() {
                     <p>{doc.url}</p>
                   </a>
                   <a className="doc-title" href={doc.url}>{doc.title}</a>
-                  <p>{doc.description.substring(0, 550)}{doc.description.length > 550 ? "...":""}</p>
+                  <div className="desc-box">
+                    {doc.description.length > 0 &&
+                      <img 
+                        className="speaker-icon"
+                        onClick={() => textToSpeech(doc.description)} 
+                        src={'/speaker-icon.svg'}/>
+                    }
+                    <p>{doc.description.substring(0, 550)}{doc.description.length > 550 ? "...":""}</p>
+                  </div>
                 </li>
               ))}
             </ul>
