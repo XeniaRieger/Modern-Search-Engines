@@ -1,5 +1,3 @@
-import math
-
 from bs4 import BeautifulSoup
 import requests
 from urllib.parse import urlparse, urljoin
@@ -11,8 +9,10 @@ from django.core.exceptions import ValidationError
 from datetime import datetime
 from Tokenizer import tokenize
 import dateutil.parser
+import logging
 
 langdetect.DetectorFactory.seed = 123
+logger = logging.getLogger(__name__)
 
 
 class Document:
@@ -26,6 +26,7 @@ class Document:
         self.language = None
         self.title = None
         self.description = None
+        self.keywords = None
         self.single_tokens = None  # single word tokens  no n-grams!
         self.raw_text = None       # the raw document text with stopwords etc
         self.raw_html = None
@@ -35,23 +36,9 @@ class Document:
         self.last_modified = None
         self.is_relevant = None
         self.save_html_file_extra = save_html_file_extra
-        self.document_fields = {
-            "title": "",
-            "headings": {
-                "h1": [],
-                "h2": [],
-                "h3": [],
-                "h4": [],
-                "h5": [],
-                "h6": []
-            },
-            "text_decorations": {
-                "bold": [],
-                "italic": [],
-                "underline": []
-            }
-        }
 
+        self.headings = {}
+        self.text_emphasis = {}
 
         # fetch document content and store the relevant information
         self.__fetch_document_content()
@@ -63,25 +50,32 @@ class Document:
         }
 
         if not self.__check_if_url_is_html(self.url, headers):
+            logger.info("\tInvalid content type or timeout")
             raise Exception("Invalid content type or timeout")
 
         res = requests.get(self.url, timeout=5, headers=headers)
 
         if res.status_code != 200:
+            logger.info("Request failed with status: " + str(res.status_code))
             raise Exception("Request failed with status: " + str(res.status_code))
 
         if len(res.text) > 5_000_000: # too long documents cause problems when parsing
+            logger.info("Document too long")
             raise Exception("Document too long")
 
         self.raw_html = res.text
         self.soup = BeautifulSoup(res.text, 'html.parser')
-        self.title = self.__get_document_title()
+        self.title = self.soup.title.text if self.soup.title is not None else ""
 
         # this relies on meta tags so it has do be done before deleting meta tags
         self.description = self.__get_document_description()
+        self.keywords = self.__get_document_keywords()
         self.last_modified = self.__get_document_modified_date(res)
+        logger.info(f"\tlast modified: {self.last_modified}")
         self.icon_url = self.__get_icon()
 
+        self.__get_document_headings()
+        self.__get_text_emphasis_words()
         # remove unnecessary elements
         for tag in self.soup(["script", "style", "link", "meta"]):
             tag.decompose()
@@ -94,12 +88,7 @@ class Document:
 
         self.raw_text = text
         self.single_tokens = tokenize(text, ngrams=1)
-        self.extract_fields()
 
-        # TODO check if this is useful or not
-        # extend the tokens by the description meta information
-        # if self.description is not None:
-        #     self.tokens.extend(tokenize(self.description))
         self.language = self.__detect_document_language()
         self.links = self.__get_links()
         self.sim_hash = self.__generate_sim_hash()
@@ -125,9 +114,9 @@ class Document:
     def __detect_document_language(self):
         try:
             # first extract the lang property from the html tag
-            # we add 25% probability to the language thats listed in the html tag
+            # we add 33% probability to the language thats listed in the html tag
             # then detect the language of the text content
-            # if the "en" language is above 50%, the document is considered english
+            # if the "en" language is above 40%, the document is considered english
 
             html_tag = self.soup.find('html')
             html_lang = None
@@ -138,19 +127,17 @@ class Document:
 
             detected_langs = {lang.lang: lang.prob for lang in langdetect.detect_langs(' '.join(self.single_tokens))}
             if html_lang is not None and html_lang in detected_langs:
-                detected_langs[html_lang] += 0.25
+                detected_langs[html_lang] += 0.33
 
             sorted_langs = dict(sorted(detected_langs.items(), key=lambda item: item[1], reverse=True))
-            if 'en' in sorted_langs and sorted_langs['en'] > 0.5:
+            logger.info(f"\tlangs: {sorted_langs}")
+            if 'en' in sorted_langs and round(sorted_langs['en']) > 0.4:
                 return 'en'
 
             # if the document is not english we just return the highest prob language
             return list(sorted_langs.keys())[0]
         except LangDetectException:
             return None
-
-    def __get_document_title(self):
-        return self.soup.title.text
 
     def __get_document_description(self):
         description_tag = self.soup.find('meta', attrs={'name': 'description'})
@@ -247,13 +234,13 @@ class Document:
                 date = publication_tag['content']
                 return dateutil.parser.parse(date)
         except:
-            print("could not parse date")
+            logger.info("could not parse date")
             return None
 
         return None
 
     def __get_icon(self):
-        for rel in ['icon', 'shortcut icon', 'apple-touch-icon']:
+        for rel in ['shortcut icon', 'icon', 'apple-touch-icon']:
             link_tag = self.soup.find('link', rel=rel)
             if link_tag is None:
                 continue
@@ -278,30 +265,24 @@ class Document:
         del state["save_html_file_extra"]
         return state
     
-    
-    def extract_fields(self):
-        '''
-        extracts the tokens in html tags 'title' and headings and stores them in self.title and self.headings
-        '''
-        # Extract title
-        if self.soup.find("title") is not None:
-            self.document_fields['title'] = self.soup.title.text.strip()
-
-        # Extract headings
+    def __get_document_headings(self):
         for level in range(1, 7):
-            heading_tag = f"h{level}"
+            heading_tag = f"h{str(level)}"
             headings = self.soup.find_all(heading_tag)
-            self.document_fields["headings"][heading_tag] = [heading.text.strip() for heading in headings]
+            if heading_tag not in self.headings:
+                self.headings[heading_tag] = []
+            self.headings[heading_tag] = [h.get_text(strip=True) for h in headings]
 
-        # Extract text decorations
-        bold_tags = self.soup.find_all(['b', 'strong'])
-        self.document_fields["text_decorations"]["bold"] = [tag.get_text(strip=True) for tag in bold_tags]
-        print(self.document_fields["text_decorations"]["bold"])
+    def __get_text_emphasis_words(self):
+        self.text_emphasis["bold"] = [bold.text.strip() for bold in self.soup.find_all(['b', 'strong'])]
+        self.text_emphasis["italic"] = [italic.text.strip() for italic in self.soup.find_all(['i', 'em'])]
+        self.text_emphasis["underline"] = [underline.text.strip() for underline in self.soup.find_all('u')]
+        self.text_emphasis["strike"] = [strike.text.strip() for strike in self.soup.find_all(['s', 'strike', 'del'])]
 
-        # Extract text content within <i> and <em> tags
-        italic_tags = self.soup.find_all(['i', 'em'])
-        self.document_fields["text_decorations"]["italic"] = [tag.get_text(strip=True) for tag in italic_tags]
-
-        # Extract text content within <u> tags
-        underline_tags = self.soup.find_all('u')
-        self.document_fields["text_decorations"]["underline"] = [tag.get_text(strip=True) for tag in underline_tags]
+    def __get_document_keywords(self):
+        keywords_meta = self.soup.find_all('meta', attrs={'name': 'keywords'})
+        keywords = []
+        for meta in keywords_meta:
+            keywords_content = meta.get('content', '')
+            keywords.extend([keyword.strip().lower() for keyword in keywords_content.split(',')])
+        return keywords

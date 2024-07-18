@@ -3,7 +3,7 @@ import collections
 import math
 import os
 import pickle
-from Tokenizer import tokenize
+from Tokenizer import tokenize, tokenize_query
 from Doc2Query import doc_2_query_minus
 from BM25Ranker import BM25Ranker
 from datetime import *
@@ -50,7 +50,9 @@ class DocumentIndex:
                 if file.endswith('.pickle'):
                     try:
                         with open(os.path.join(root, file), 'rb') as f:
-                            self.add(pickle.load(f), ngrams, use_doc2query)
+                            doc = pickle.load(f)
+                            if doc.is_relevant:
+                                self.add(doc, ngrams, use_doc2query)
                     except Exception as e:
                         print(str(e))
                         continue
@@ -173,7 +175,8 @@ class DocumentIndex:
         return self.__get_documents(ranked_docs[:top_k])
 
     def retrieve_bm25(self, query, top_k: int = 10):
-        doc_ids = self.__bm25_ranker.search(query, top_k)
+        query_tokens = tokenize_query(query)
+        doc_ids = self.__bm25_ranker.search(query_tokens, top_k)
         return self.__get_documents(doc_ids)
 
     def __get_documents(self, doc_ids):
