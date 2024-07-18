@@ -31,7 +31,7 @@ def search(request):
         try:
             data = json.loads(request.body)
             query = data.get('query', '')
-            docs = document_index.retrieve(query, top_k=100)
+            docs = document_index.retrieve_bm25(query, top_k=100)
             return JsonResponse(docs, safe=False)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)

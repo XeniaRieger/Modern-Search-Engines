@@ -306,8 +306,9 @@ class Crawler:
                     self.__crawl_state[domain]['irrelevancy_counter'] = self.__crawl_state[domain].get("irrelevancy_counter", 0) + 1
                     logger.info(f"\tdocument not relevant, irrelevancy_counter for domain: {self.__crawl_state[domain]['irrelevancy_counter']}")
 
-                    if save_irrelevant_documents:
+                    if save_irrelevant_documents and not self.__has_similar_document(doc):
                         self.__serialize_document(doc, save_html_file_extra)
+                        self.__add_doc_metadata(doc)
 
                     continue
                 elif self.__has_similar_document(doc):

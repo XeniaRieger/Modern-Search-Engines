@@ -14,14 +14,14 @@ lemmatizer = WordNetLemmatizer()
 stopwords = stopwords.words('english')
 
 
-def tokenize(text: str, ngrams=3):
+def tokenize(text: str, ngrams=3) -> list:
     text = text.lower().replace("tuebingen", "tübingen").replace("tubingen", "tübingen").replace("tübinger", "tübingen")
     tokens = nltk.tokenize.word_tokenize(text)
     cleaned_tokens = [lemmatizer.lemmatize(t) for t in tokens if t.isalnum() and t not in stopwords]
 
     ngram_list = []
     for n in range(1, ngrams + 1):
-        ngram_list.extend([" ".join(ngram) for ngram in nltk.ngrams(cleaned_tokens, n)])
+        ngram_list.extend([" ".join(t) for t in nltk.ngrams(cleaned_tokens, n)])
 
     return ngram_list
 

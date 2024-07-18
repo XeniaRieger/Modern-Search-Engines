@@ -1,22 +1,24 @@
 import { useState } from 'react'
 import './App.css';
 
-
 function App() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => {
     setQuery(e.target.value);
   };
 
   const handleSearch = async (e) => {
+    if(loading) return;
     e.preventDefault();
 
     if(!query) return;
 
     setResults([]);
     try {
+      setLoading(true);
       const response = await fetch('/search', {
         method: 'POST',
         headers: {
@@ -28,6 +30,8 @@ function App() {
       setResults(data);
     } catch (error) {
       console.error('Error fetching search results:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -45,7 +49,9 @@ function App() {
           <button type="submit"><img src="/search-icon.svg" alt="Search" className="search-icon" /></button>
         </form>
         <div className="results">
-          {results ? (
+          {loading && <span class="spinner"></span>}
+          {(!loading && results?.length == 0) && <span>No results</span>}
+          {results && (
             <ul className='results-list'>
               {results.map((doc, index) => (
                 <li key={index}>
@@ -54,13 +60,11 @@ function App() {
                     <p>{doc.url}</p>
                   </a>
                   <a className="doc-title" href={doc.url}>{doc.title}</a>
-                  <p>{doc.description}</p>
+                  <p>{doc.description.substring(0, 550)}{doc.description.length > 550 ? "...":""}</p>
                 </li>
               ))}
             </ul>
-          ) : (
-            <p>No results found.</p>
-          )}
+            )}
         </div>
       </div>
     </main>
