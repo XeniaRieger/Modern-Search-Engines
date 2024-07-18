@@ -90,7 +90,7 @@ class DocumentIndex:
     def search(self, query: str, top_k: int = 10):
         print("PROCESSING QUERY:", query)
         self.__calculate_tfidf() # probably not a good idea to do this for every query
-        query_tokens = tokenize(query.split())
+        query_tokens = tokenize(query)
         query_tfidf = self.__calculate_query_tfidf(query_tokens)
         scores = self.__score_documents(query_tfidf)
         ranked_docs = sorted(scores.items(), key=lambda item: item[1], reverse=True)
