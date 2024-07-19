@@ -33,13 +33,39 @@
 .speaker-icon {
   width: 24px;
   height: 24px;
-  filter: invert(100%);
+  filter: invert(50%);
   cursor: pointer;
+  transition: all 40ms ease;
+  display: block;
 }
+
+.speaker-box {
+  position: relative;
+}
+
+.speaker-box.playing .speaker-icon {
+  filter: invert(100%);
+  transform:scale(1.25);
+}
+
+.speaker-box.playing::after {
+  content: "";
+  position: absolute;
+  /* display: inline-block; */
+  cursor: pointer;
+  width: 32px;
+  height: 4px;
+  background-repeat: no-repeat;
+  background-color: red;
+  left:-3px;
+  top: 10px;
+  transform: rotate(-45deg);
+}
+
 
 .speaker-icon:hover{
   transform:scale(1.25);
-  transition: all 40ms ease;
+  filter: invert(100%);
 }
 
 .desc-box, .summary-box {
@@ -54,7 +80,7 @@
   width: 96px;
   height: 26px;
   background-color: rgb(36, 37, 36);
-  border: 1px solid white;
+  border: 1px solid rgba(255, 255, 255, 0.37);
   border-radius: 10px;
   color:white;
   cursor: pointer;

@@ -8,9 +8,13 @@ function Document({ doc }) {
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
-  const textToSpeech = (text) => {
+  const [descAudioPlaying, setDescAudioPlaying] = useState(false);
+  const [summaryAudioPlaying, setSummaryAudioPlaying] = useState(false);
+
+  const textToSpeech = (text, onEnd) => {
     window.speechSynthesis.cancel();
     let synth = new SpeechSynthesisUtterance(text)
+    synth.onend = onEnd;
     synth.lang = 'en-US';
     window.speechSynthesis.speak(synth);
   }
@@ -44,10 +48,20 @@ function Document({ doc }) {
       <a className="doc-title" href={doc.url}>{doc.title}</a>
       <div className="desc-box">
         {doc.description.length > 0 &&
-          <img
-            className="speaker-icon"
-            onClick={() => textToSpeech(doc.title + "." + doc.description)}
-            src={'/speaker-icon.svg'} />
+          <div className={`speaker-box ${descAudioPlaying ? "playing" : ""}`}>
+            <img
+              className='speaker-icon'
+              onClick={() => {
+                setDescAudioPlaying(true);
+                if(!descAudioPlaying){
+                  textToSpeech(doc.title + "." + doc.description, () => setDescAudioPlaying(false));
+                } else {
+                  window.speechSynthesis.cancel();
+                  setDescAudioPlaying(false);
+                }
+              }}
+              src={'/speaker-icon.svg'} />
+          </div>
         }
         <div>
           <p>{doc.description.substring(0, MAX_DOC_DESC_LEN)}{doc.description.length > MAX_DOC_DESC_LEN ? "..." : ""}</p>
@@ -61,10 +75,20 @@ function Document({ doc }) {
         }
         {summary && (
           <>
-            <img
-              className="speaker-icon"
-              onClick={() => textToSpeech(summary)}
-              src={'/speaker-icon.svg'} />
+            <div className={`speaker-box ${summaryAudioPlaying ? "playing" : ""}`}>
+              <img
+                className='speaker-icon'
+                onClick={() => {
+                  setSummaryAudioPlaying(true);
+                  if(!summaryAudioPlaying){
+                    textToSpeech(summary, () => setSummaryAudioPlaying(false));
+                  } else {
+                    window.speechSynthesis.cancel();
+                    setSummaryAudioPlaying(false);
+                  }
+                }}
+                src={'/speaker-icon.svg'} />
+            </div>
             <div>
               <b className="summary-heading">Summary:</b>
               <p>{summary}</p>
@@ -73,7 +97,7 @@ function Document({ doc }) {
         )}
       </div>
       <div className="spinner-wrapper">
-        {summaryLoading && <span class="spinner"></span>}  
+        {summaryLoading && <span class="spinner"></span>}
       </div>
 
     </>
