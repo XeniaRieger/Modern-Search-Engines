@@ -48,7 +48,7 @@
   transform:scale(1.25);
 }
 
-.speaker-box.playing::after {
+.speaker-box.playing:hover::after {
   content: "";
   position: absolute;
   /* display: inline-block; */
