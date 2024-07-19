@@ -19,9 +19,9 @@ class BM25Ranker:
         now = datetime.now(timezone.utc)
         for doc_id, terms in tqdm(self.__index.tf.items()):
             doc_len = sum(terms.values())
+            time_weight = self.__get_recency_score(doc_id, now)
             for term, tf in terms.items():
                 weight = self.__get_weight(term, doc_id)
-                time_weight = self.__get_recency_score(doc_id, now)
                 fraction = (tf * (self.__k1 + 1)) / (tf + self.__k1 * (1 - self.__b + self.__b * (doc_len / self.__index.avg_doc_length)))
                 self.__bm25_doc_term[doc_id][term] = time_weight * weight * self.__index.idf[term] * fraction
 

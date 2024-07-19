@@ -18,6 +18,15 @@ span {
   font-size: 25pt;
 }
 
+label {
+  color: rgb(255, 255, 255);
+  font-size: 17pt;
+}
+
+button {
+  max-width: 100px;
+}
+
 .spinner {
   width: 48px;
   height: 48px;
@@ -121,49 +130,8 @@ input[type="text"]:focus {
   margin-bottom: 2.3em;
   max-width: 100%;
   text-overflow: ellipsis;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 1em; 
+  border-radius: 20px; 
 }
 
-.url-box {
-  display: flex;
-  align-items: center;
-  font-size: 11pt;
-  text-decoration: none;
-  
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.url-box > img {
-  width: 24px;
-  height: 24px;
-  image-rendering: pixelated;
-  border-radius: 6px;
-  margin-right: 5px;
-}
-
-.doc-title {
-  font-size: 16pt;
-  font-weight: bold;
-}
-
-.doc-title:hover {
-  text-decoration: underline;
-}
-
-.doc-title:visited {
-  text-decoration: none;
-  color: rgb(167, 12, 167);
-}
-
-.speaker-icon {
-  width: 24px;
-  height: 24px;
-  filter: invert(100%);
-  cursor: pointer;
-}
-
-.desc-box {
-  display: flex;
-  gap: 10px;
-  margin-left: -42px;
-}

@@ -3,8 +3,13 @@ from pyterrier_dr import ElectraScorer
 import pandas as pd
 from Tokenizer import tokenize
 
-doc2query = Doc2Query(num_samples=8, fast_tokenizer=True)
-scorer = QueryScorer(ElectraScorer(verbose=False))
+
+import torch
+if torch.cuda.is_available():
+    print("Running doc2query on GPU")
+
+doc2query = Doc2Query(num_samples=4, batch_size=64, verbose=True, fast_tokenizer=True)
+scorer = QueryScorer(ElectraScorer(verbose=True))
 filterer = QueryFilter(t=0.1234, append=False)
 
 def doc_2_query_minus(docs, ngrams):

@@ -205,10 +205,12 @@ class DocumentIndex:
                 doc = pickle.load(f)
                 docs.append({
                     "url": doc.url,
+                    "url_hash": doc.url_hash,
                     "title": doc.title,
                     "description": doc.description,
                     "icon_url": doc.icon_url,
-                    "score": score
+                    "score": score,
+                    "raw_text": doc.raw_text,
                 })
         return docs
 

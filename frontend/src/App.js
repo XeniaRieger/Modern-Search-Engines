@@ -1,28 +1,25 @@
 import { useState } from 'react'
 import './App.css';
+import Document from './components/Document'
 
 function App() {
 
+
   const [query, setQuery] = useState('');
+  const [amount, setAmount] = useState(100);
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  function textToSpeech(text) {
-    window.speechSynthesis.cancel();
-    let synth = new SpeechSynthesisUtterance(text)
-    synth.lang = 'en-US';
-    window.speechSynthesis.speak(synth);
-  }
 
   const handleInputChange = (e) => {
     setQuery(e.target.value);
   };
 
   const handleSearch = async (e) => {
-    if(loading) return;
+    if (loading) return;
     e.preventDefault();
 
-    if(!query) return;
+    if (!query) return;
 
     setResults([]);
     try {
@@ -32,7 +29,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, "top_k": amount }),
       });
       const data = await response.json();
       setResults(data);
@@ -42,6 +39,7 @@ function App() {
       setLoading(false);
     }
   };
+
 
   return (
     <main>
@@ -55,6 +53,16 @@ function App() {
             placeholder="Search..."
           />
           <button type="submit"><img src="/search-icon.svg" alt="Search" className="search-icon" /></button>
+
+          <div>
+            <label for="top_k" value="Amount">Amount</label>
+            <input id="top_k"
+              type="number"
+              min="10"
+              max="100"
+              value={amount}
+              onChange={e => setAmount(e.target.value)} />
+          </div>
         </form>
         <div className="results">
           {loading && <span class="spinner"></span>}
@@ -63,24 +71,11 @@ function App() {
             <ul className='results-list'>
               {results.map((doc, index) => (
                 <li key={index}>
-                  <a className='url-box' href={doc.url}>
-                    {doc.icon_url && <img src={doc.icon_url} />}
-                    <p>{doc.url}</p>
-                  </a>
-                  <a className="doc-title" href={doc.url}>{doc.title}</a>
-                  <div className="desc-box">
-                    {doc.description.length > 0 &&
-                      <img 
-                        className="speaker-icon"
-                        onClick={() => textToSpeech(doc.description)} 
-                        src={'/speaker-icon.svg'}/>
-                    }
-                    <p>{doc.description.substring(0, 550)}{doc.description.length > 550 ? "...":""}</p>
-                  </div>
+                  <Document doc={doc}/>
                 </li>
               ))}
             </ul>
-            )}
+          )}
         </div>
       </div>
     </main>
