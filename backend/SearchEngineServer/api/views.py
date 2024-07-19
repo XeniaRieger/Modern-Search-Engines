@@ -36,6 +36,8 @@ def search(request):
             query = data.get('query', '')
             top_k = int(data.get('top_k', 20))
             docs = document_index.retrieve_bm25(query, top_k=top_k)
+            for d in docs:
+                del d['raw_text']
             # generate_batch_summary(docs)
             return JsonResponse(docs, safe=False)
         except json.JSONDecodeError:
