@@ -2,13 +2,15 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
-
+from spellchecker import SpellChecker
 
 nltk.download('words')
 nltk.download('stopwords')
 nltk.download('punkt')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
+
+spell = SpellChecker()
 
 lemmatizer = WordNetLemmatizer()
 stopwords = stopwords.words('english')
@@ -30,6 +32,8 @@ def tokenize_query(query: str, ngrams=3, max_length_before_ngram=40):
     max_length = max_length_before_ngram
     query = query.lower()
     tokens = nltk.tokenize.word_tokenize(query)
+    # correct misspelled words
+    tokens = [spell.correction(t) for t in tokens if spell.correction(t) is not None]
     # try to remove Tübingen because every doc is about tübingen
     try_query = [e for e in tokens if e not in ("tuebingen", "tubingen", "tübingen", "tübinger")]
     if not try_query:

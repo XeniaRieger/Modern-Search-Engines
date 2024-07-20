@@ -9,7 +9,7 @@ class ReRanker:
 	# parameter relevance_importance controls the importance of relevance scores vs. diversity
 	# 0 <= relevance_importance <= 1, higher number favors relevance
 	# consider specifies how many documents ranked below the current one are considered for reranking (smaller number = faster)
-	def __init__(self, relevance_importance: int = 0.7, consider: int = 100):
+	def __init__(self, relevance_importance: int = 0.7, consider: int = 50):
 		parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
 		lda = LDAmodel.load(os.path.join(parent_path, "serialization", "ldamodel.pickle"))
 		self.doc_topics = lda.document_topics
@@ -30,16 +30,16 @@ class ReRanker:
 			topic_names[topic[0]] = topic[1].split('"')[1]
 		return topic_names
 
-	def diversify(self, ranking, top_k):
+	def diversify(self, ranking):
 		reranked = []
 		documents = ranking.copy()
 		# add the single most relevant document to our ranking
 		reranked.append(ranking[0])
 		documents.remove(documents[0])	    
-		while len(reranked) < top_k:
+		while documents:
 			# greedily add the single document that maximizes the weighted mix of l * relevance + (1-l) diversity up to set amout of docs by consider
 			v_max = 0
-			max_doc = 0
+			max_doc = None
 			for doc in documents[:self.consider]:
 				reranked.append(doc)
 				v = self.relevance_importance * self.measure_relevance(reranked) + (1 - self.relevance_importance) * self.measure_diversity(reranked)
@@ -85,9 +85,13 @@ class ReRanker:
 		parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
 		index = DocumentIndex.load(os.path.join(parent_path, "serialization", "index.pickle"))
 		self.original_ranking = index.retrieve_bm25(query, top_k)
-		ranking = self.diversify(self.original_ranking, top_k)
+		if not self.original_ranking:
+			return []
+		ranking = self.diversify(self.original_ranking)
 		for doc in ranking:
 			topics = [self.topic_names[t[0]] for t in self.doc_topics[doc["url_hash"]] if t[1] >= topic_threshhold]
-			print(topics)
-			doc['topics'] = topic
+			doc['topics'] = topics
 		return ranking
+
+if __name__ == '__main__':
+	print(ReRanker().rank_documents("frood"))
