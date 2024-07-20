@@ -1,5 +1,4 @@
 import sys
-import os
 
 from DocumentIndex import *
 
@@ -29,6 +28,6 @@ if __name__ == '__main__':
     open(save_file_path, "w").close() # make file empty
     for query_num, query_term in queries.items():
         result = enumerate(index.retrieve_bm25(query_term, top_k=100))
-        with open(save_file_path, "a") as file:
+        with open(save_file_path, "a", encoding="utf-8") as file:
             for i, doc in result:
                 file.write(f"{query_num}\t{i+1}\t{doc['url']}\t{doc['score']}\n")

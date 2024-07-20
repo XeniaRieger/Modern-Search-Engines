@@ -6,9 +6,20 @@ import pickle
 from datetime import datetime
 from urllib.robotparser import RobotFileParser
 import socket
+import logging
 
 sys.setrecursionlimit(50000)  # for pickle save
 socket.setdefaulttimeout(5)   # when fetching robots.txt or document
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s : %(message)s')
+stream_handler = logging.StreamHandler(sys.stdout)
+file_handler = logging.FileHandler('crawling_log.log', mode="a")
+stream_handler.setFormatter(formatter)
+file_handler.setFormatter(formatter)
+logger.addHandler(stream_handler)
+logger.addHandler(file_handler)
 
 
 def save_pickle(obj, path):
@@ -102,10 +113,10 @@ class Crawler:
     # for debugging
     def __pretty_print_crawl_state(self):
         for domain, state in self.__crawl_state.items():
-            print(domain)
+            logger.info(domain)
             for key, value in state.items():
                 if key != "robots_fp":
-                    print(f"\t{key}:  {str(value)}")
+                    logger.info(f"\t{key}:  {str(value)}")
 
     def __is_allowed_to_crawl(self, url: str) -> int:
         """
@@ -225,18 +236,34 @@ class Crawler:
             if not os.path.exists(html_path):
                 os.makedirs(html_path)
 
-    def crawl(self, print_mode: bool, save_html_file_extra: False):
+    def __check_relevant(self, doc: Document):
+        words = ["tübingen", "tuebingen", "tubingen"]
+
+        if doc.language is None or doc.language != "en":
+            return False
+
+        url_lower = doc.url.lower()
+        if any(w in url_lower for w in words):
+            logging.info("\turl contains tübingen")
+            return True
+
+        for token in doc.single_tokens:
+            if token in words:
+                logging.info("\tdoc.single_tokens contains tübingen")
+                return True
+        return False
+
+    def crawl(self, save_html_file_extra=False, save_irrelevant_documents=False):
         self.__create_folder_structure(save_html_file_extra)
 
         while self.frontier:
-            doc = None
             url = self.frontier.pop()
 
             if any(w in url for w in ["javascript:linkTo_UnCryptMailto", "tel:+"]):
                 continue
 
             domain = Document.get_domain(url)
-            if print_mode: print(url, end="\t")
+            logger.info(url)
 
             # check if url already crawled
             if url in self.__doc_metadata:
@@ -244,7 +271,7 @@ class Crawler:
                 last_crawl = self.__doc_metadata[url]["last_crawled"]
                 time_since_last_crawl = max((datetime.today() - last_crawl).total_seconds(), 0)
                 if time_since_last_crawl < self.DOC_UPDATE_THRESHOLD:
-                    if print_mode: print("last crawled threshold not met")
+                    logger.info("\tlast crawled threshold not met")
                     continue
 
             try:
@@ -252,63 +279,60 @@ class Crawler:
                 crawl_check = self.__is_allowed_to_crawl(url)
 
                 if crawl_check == 0:    # disallowed
-                    if print_mode:
-                        print("not allowed")
+                    logger.info("\tnot allowed")
                     continue
                 elif crawl_check == 2:  # if req limit violation put the url at the end of the frontier
-                    if print_mode:
-                        print("request limit violation")
+                    logger.info("\trequest limit violation")
                     self.frontier.appendleft(url)
                     continue
                 elif crawl_check == 3:  # remove the urls with same domain from the frontier
-                    if print_mode:
-                        print(f"maximum crawl amount for {domain} reached, removing all links from this domain")
+                    logger.info(f"\tmaximum crawl amount for {domain} reached, removing all links from this domain")
                     self.__remove_domain_from_frontier(domain)
                     continue
                 elif crawl_check == 4:  # remove the urls with same domain from the frontier
-                    if print_mode:
-                        print(f"maximum irrelevancy counter for {domain} reached, removing all links from this domain")
+                    logger.info(f"\tmaximum irrelevancy counter for {domain} reached, removing all links from this domain")
                     self.__remove_domain_from_frontier(domain)
                     continue
                 elif crawl_check == 5:
-                    if print_mode:
-                        print(f"site's robots.txt cannot be reached")
+                    logger.info(f"\tsite's robots.txt cannot be reached")
                     self.__remove_domain_from_frontier(domain)
                     continue
 
                 doc = Document(url, save_html_file_extra)
 
                 # check sim_hashes, if no collision + language is english and doc related to Tü -> store doc in index
+                doc.is_relevant = self.__check_relevant(doc)
                 if not doc.is_relevant:
                     self.__crawl_state[domain]['irrelevancy_counter'] = self.__crawl_state[domain].get("irrelevancy_counter", 0) + 1
-                    if print_mode:
-                        print(f"document not relevant, irrelevancy_counter for domain: {self.__crawl_state[domain]['irrelevancy_counter']}")
+                    logger.info(f"\tdocument not relevant, irrelevancy_counter for domain: {self.__crawl_state[domain]['irrelevancy_counter']}")
+
+                    if save_irrelevant_documents and not self.__has_similar_document(doc):
+                        self.__serialize_document(doc, save_html_file_extra)
+                        self.__add_doc_metadata(doc)
+
                     continue
                 elif self.__has_similar_document(doc):
-                    if print_mode:
-                        print("similar document found")
+                    logger.info("\tsimilar document found")
                     continue
 
                 # SITE RELEVANT
+                self.__serialize_document(doc, save_html_file_extra)
                 self.__add_doc_metadata(doc)
                 self.__add_links_to_frontier(url, doc.links)
 
                 # reset the irrelevancy_counter
                 self.__crawl_state[domain]['irrelevancy_counter'] = 0
                 self.__crawl_state[domain]['connection_errors'] = 0
-                if print_mode:
-                    print("indexed + added to frontier")
+                logger.info("\tdocument saved")
 
                 # self.__pretty_print_crawl_state()
             except Exception as e:
-                if print_mode: print("\tError: " + str(e))
+                logger.info("\tError: " + str(e))
                 continue
             finally:
-                if doc is not None:
-                    self.__serialize_document(doc, save_html_file_extra)
                 self.__save_crawl_state()
 
 
 if __name__ == '__main__':
     crawler = Crawler()
-    crawler.crawl(print_mode=True, save_html_file_extra=False)
+    crawler.crawl(save_html_file_extra=True, save_irrelevant_documents=False)

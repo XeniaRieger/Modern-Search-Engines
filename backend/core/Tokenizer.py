@@ -3,6 +3,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 
+
 nltk.download('words')
 nltk.download('stopwords')
 nltk.download('punkt')
@@ -13,16 +14,19 @@ lemmatizer = WordNetLemmatizer()
 stopwords = stopwords.words('english')
 
 
-def tokenize(text: str, ngrams=1):
+def tokenize(text: str, ngrams=3) -> list:
     text = text.lower().replace("tuebingen", "tübingen").replace("tubingen", "tübingen").replace("tübinger", "tübingen")
     tokens = nltk.tokenize.word_tokenize(text)
     cleaned_tokens = [lemmatizer.lemmatize(t) for t in tokens if t.isalnum() and t not in stopwords]
-    if ngrams > 1:
-        return [" ".join(t) for t in nltk.ngrams(cleaned_tokens, ngrams)]
 
-    return cleaned_tokens
-    
-def tokenize_query(query: str, ngrams=1, max_length_before_ngram=40):
+
+    ngram_list = []
+    for n in range(1, ngrams + 1):
+        ngram_list.extend([" ".join(t) for t in nltk.ngrams(cleaned_tokens, n)])
+
+    return ngram_list
+
+def tokenize_query(query: str, ngrams=3, max_length_before_ngram=40):
     max_length = max_length_before_ngram
     query = query.lower()
     tokens = nltk.tokenize.word_tokenize(query)
@@ -57,6 +61,10 @@ def tokenize_query(query: str, ngrams=1, max_length_before_ngram=40):
                     i += 1
     if len(query) > max_length:
         query = query[:max_length]
-    if ngrams > 1:
-        return [" ".join(t) for t in nltk.ngrams(query, ngrams)]
-    return query
+
+    query_ngrams = []
+    for n in range(1, ngrams + 1):
+        query_ngrams.extend([" ".join(ngram) for ngram in nltk.ngrams(query, n)])
+
+    return query_ngrams
+

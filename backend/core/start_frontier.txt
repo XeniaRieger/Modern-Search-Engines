@@ -1,6 +1,6 @@
 https://www.tuebingen.de/en/
 https://uni-tuebingen.de/en/
-https://www.bandsintown.com/
+https://www.bandsintown.com/?latitude=48.5353012&longitude=9.0700134
 https://en.wikipedia.org/wiki/T%C3%BCbingen
 https://www.unimuseum.uni-tuebingen.de/en/museum-at-hohentuebingen-castle
 https://www.germany.travel/en/cities-culture/tuebingen.html
