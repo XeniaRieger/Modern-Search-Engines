@@ -5,6 +5,7 @@ import os
 import pickle
 import datetime
 from Tokenizer import tokenize
+from Tokenizer import tokenize_query
 from Doc2Query import doc_2_query_minus
 from BM25Ranker import BM25Ranker
 from datetime import *
@@ -222,7 +223,7 @@ class DocumentIndex:
         return self.__get_documents(sorted[:top_k])
 
     def retrieve_bm25(self, query, top_k: int = 10):
-        query_tokens = tokenize(query)
+        query_tokens = tokenize_query(query)
         scores = self.__bm25_ranker.query_bm25(query_tokens)
         sorted = self.__sort_scores(scores)
         return self.__get_documents(sorted[:top_k])
