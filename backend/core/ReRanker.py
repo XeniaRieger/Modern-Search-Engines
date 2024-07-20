@@ -92,6 +92,3 @@ class ReRanker:
 			topics = [self.topic_names[t[0]] for t in self.doc_topics[doc["url_hash"]] if t[1] >= topic_threshhold]
 			doc['topics'] = topics
 		return ranking
-
-if __name__ == '__main__':
-	print(ReRanker().rank_documents("frood"))
