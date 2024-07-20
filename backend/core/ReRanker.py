@@ -79,18 +79,15 @@ class ReRanker:
 			deviation = 1
 		return 1 - deviation
 
-	def rank_documents(self, query: str, top_k: int = 10):
+	# topic_threshhold: how much percent of words has to belong to a topic, so that the topic is counted
+	# 0 <= topic_threshhold <= 1
+	def rank_documents(self, query: str, top_k: int = 10, topic_threshhold: int = 0.2):
 		parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
 		index = DocumentIndex.load(os.path.join(parent_path, "serialization", "index.pickle"))
 		self.original_ranking = index.retrieve_bm25(query, top_k)
-		return self.diversify(self.original_ranking, top_k)
-
-	# topic_threshhold: how much percent of words has to belong to a topic, so that the topic is counted
-	# 0 <= topic_threshhold <= 1
-	def rank_documents_with_topic(self, query: str, top_k: int = 10, topic_threshhold: int = 0.2):
-		ranking = self.rank_documents(query, top_k)
+		ranking = self.diversify(self.original_ranking, top_k)
 		for doc in ranking:
 			topics = [self.topic_names[t[0]] for t in self.doc_topics[doc["url_hash"]] if t[1] >= topic_threshhold]
 			print(topics)
-			doc['topics'] = topics
+			doc['topics'] = topic
 		return ranking
