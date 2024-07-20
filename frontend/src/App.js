@@ -45,16 +45,18 @@ function App() {
     <main>
       <div className='content'>
         <h1 className="logo">TüBing</h1>
-        <form className="search-box" onSubmit={handleSearch}>
-          <input
-            type="text"
-            value={query}
-            onChange={handleInputChange}
-            placeholder="Search..."
-          />
-          <button type="submit"><img src="/search-icon.svg" alt="Search" className="search-icon" /></button>
+        <form onSubmit={handleSearch}>
+          <div className="search-box">
+            <input
+              type="text"
+              value={query}
+              onChange={handleInputChange}
+              placeholder="Search..."
+            />
+            <button type="submit"><img src="/search-icon.svg" alt="Search" className="search-icon" /></button>
+          </div>
 
-          <div>
+          <div className='amount-box'>
             <label for="top_k" value="Amount">Amount</label>
             <input id="top_k"
               type="number"
@@ -71,7 +73,7 @@ function App() {
             <ul className='results-list'>
               {results.map((doc, index) => (
                 <li key={index}>
-                  <Document doc={doc}/>
+                  <Document doc={doc} />
                 </li>
               ))}
             </ul>
