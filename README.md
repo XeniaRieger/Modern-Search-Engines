@@ -36,6 +36,13 @@ python DocumentIndex.py
 ```
 The generated index file is stored at ``serialization\documents\index.pickle``.
 
+## Run Topic Model
+The topic model is needed to rerank documents for diversity. Execute to train:
+```
+cd backend/core
+python LDAmodel.py
+```
+
 ## Run REST API Server
 To start the django rest server:
 ```
