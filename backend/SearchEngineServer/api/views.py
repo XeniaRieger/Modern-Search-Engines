@@ -7,6 +7,7 @@ import os
 # we have to define a custom unpickler because the index pickle file was created inside the DocumentIndex file
 from api.Summarizer import generate_batch_summary, generate_summary
 
+from ReRanker import *
 
 class CustomUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
@@ -26,6 +27,8 @@ path = os.path.join(os.path.dirname(os.path.normpath(os.getcwd())), "serializati
 document_index = unpickle_document_index(path)
 print(f"loaded index with {document_index.total_documents} documents")
 
+print("loading ReRanker...")
+re_ranker = ReRanker()
 
 @csrf_exempt
 def search(request):
@@ -46,7 +49,12 @@ def search(request):
 
             for d in docs:
                 del d['raw_text']
-            # generate_batch_summary(docs)
+
+            if 'diversity' in data:
+                print("reranking...")
+                relevance_importance = 1 - float(data.get('diversity', 0))
+                docs = re_ranker.rank_documents(docs, relevance_importance=relevance_importance, consider=len(docs))
+
             return JsonResponse(docs, safe=False)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)

@@ -5,22 +5,21 @@ import Document from './components/Document'
 function App() {
 
 
-  const [query, setQuery] = useState('');
-  const [amount, setAmount] = useState(100);
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [diversity, setDiversity] = useState(50);
 
-
-  const handleInputChange = (e) => {
-    setQuery(e.target.value);
-  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (loading) return;
+
+    let method = e.target.elements.retrieval_method.value;
+    let query = e.target.elements.query.value;
+    let amount = e.target.elements.amount.value;
+
     if (!query) return;
 
-    let method = e.target.elements.retrieval_method.value
     setResults([]);
     try {
       setLoading(true);
@@ -29,7 +28,12 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query, "top_k": amount, "retrieval_method": method }),
+        body: JSON.stringify({
+          "query": query,
+          "top_k": amount,
+          "retrieval_method": method,
+          "diversity": diversity/100
+        }),
       });
       const data = await response.json();
       setResults(data);
@@ -48,9 +52,8 @@ function App() {
         <form onSubmit={handleSearch}>
           <div className="search-box">
             <input
+              id="query"
               type="text"
-              value={query}
-              onChange={handleInputChange}
               placeholder="Search..."
             />
             <button type="submit"><img src="/search-icon.svg" alt="Search" className="search-icon" /></button>
@@ -65,13 +68,27 @@ function App() {
               </select>
             </div>
             <div>
-              <label for="top_k" value="amount">Amount</label>
-              <input id="top_k"
+              <label for="amount" value="amount">Amount</label>
+              <input id="amount"
                 type="number"
+                defaultValue="100"
                 min="10"
-                max="100"
-                value={amount}
-                onChange={e => setAmount(e.target.value)} />
+                max="100" />
+            </div>
+            <div className="diversity-box">
+              {/* <label for="rerank">rerank</label>
+              <input type="checkbox" id="rerank" name="rerank"/> */}
+              <label for="diversity">Priority</label>
+              <div>
+                <span>relevance</span>
+                <input id="diversity"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={diversity}
+                  onChange={e => setDiversity(e.target.value)} />
+                <span>diversity</span>
+              </div>
             </div>
           </div>
 

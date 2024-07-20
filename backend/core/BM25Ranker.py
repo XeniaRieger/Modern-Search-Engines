@@ -29,15 +29,15 @@ class BM25Ranker:
         w = 1.0
         doc = self.__index.doc_metadata[doc_id]
         if 'title' in doc and term in doc['title']:
-            w *= 1.75
+            w *= 2
 
         for h in doc['headings'].values():
             if term in h:
-                w *= 1.5
+                w *= 1.6
 
         for e in doc['text_emphasis'].values():
             if term in e:
-                w *= 1.1
+                w *= 1.2
 
         return w
 
@@ -52,7 +52,12 @@ class BM25Ranker:
             if term in self.__index.inverted_index:
                 for doc_id in self.__index.inverted_index[term]:
                     if term in self.__bm25_doc_term[doc_id]:
-                        query_bm25[doc_id] += self.__bm25_doc_term[doc_id][term]
+
+                        # we weight a longer ngram exponentially more than a single one
+                        w = math.exp(0.29 * len(term.split()) - 0.336)
+
+                        points = self.__bm25_doc_term[doc_id][term]
+                        query_bm25[doc_id] += points * w
         return query_bm25
 
 

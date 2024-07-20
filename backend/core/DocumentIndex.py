@@ -4,6 +4,7 @@ import math
 import os
 import pickle
 import datetime
+from urllib.parse import urlparse
 from Tokenizer import tokenize
 from Tokenizer import tokenize_query
 from Doc2Query import doc_2_query_minus
@@ -71,6 +72,10 @@ class DocumentIndex:
 
         print("Index created.")
 
+    def __base_url_relevant(self, url):
+        base_url = urlparse(url).scheme.lower().replace("tuebingen", "tübingen").replace("tubingen", "tübingen").replace("tübinger", "tübingen")
+        return "tübingen" in base_url
+
     def __load_documents(self, documents_path):
         docs = []
         for root, dirs, files in os.walk(documents_path):
@@ -79,7 +84,8 @@ class DocumentIndex:
                     try:
                         with open(os.path.join(root, file), 'rb') as f:
                             doc = pickle.load(f)
-                            if doc.is_relevant:
+                            # making sure to just index relevant documents
+                            if self.__base_url_relevant(doc.url) or (doc.is_relevant and "tübingen" in doc.single_tokens):
                                 docs.append(doc)
                     except Exception as e:
                         print(str(e))

@@ -107,6 +107,8 @@ a:link, a:visited {
 .search-box {
   display: flex;
   gap: 10px;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-box button {
@@ -163,6 +165,7 @@ input[type="text"]:focus {
 
 .query-options > div {
   display: flex;
+  flex-wrap: wrap;
   gap: 5px;
   justify-content: center;
   align-items: center;
@@ -186,4 +189,21 @@ input[type="text"]:focus {
   padding: 1em; 
   border-radius: 20px; 
 }
+
+.diversity-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.diversity-box div {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.diversity-box span {
+  font-size: 12pt;
+}
+
 
