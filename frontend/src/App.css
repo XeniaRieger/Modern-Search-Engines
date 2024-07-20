@@ -1,7 +1,7 @@
 
 main {
   background-color: black;
-  background: linear-gradient(to bottom, transparent 50%, rgb(0, 0, 0)), url("https://s1.1zoom.me/big0/962/Germany_Houses_Rivers_Marinas_Boats_Tuebingen_589316_1280x826.jpg");
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.833) 85%, rgb(0, 0, 0)), url("https://s1.1zoom.me/big0/962/Germany_Houses_Rivers_Marinas_Boats_Tuebingen_589316_1280x826.jpg");
 
   background-repeat: no-repeat;
   background-size: cover;
@@ -133,7 +133,7 @@ a:link, a:visited {
   transform: translate(-1px, 1px);
 }
 
-input {
+input, select {
   border: 1px solid rgba(255, 255, 255, 0.3);
   background-color: rgb(0, 0, 0);
   padding: 11px;
@@ -156,9 +156,14 @@ input[type="text"]:focus {
   border: 1px solid rgba(52, 150, 255, 0.57);
 }
 
-.amount-box {
+.query-options {
   display: flex;
-  gap: 10px;
+  gap: 40px;
+}
+
+.query-options > div {
+  display: flex;
+  gap: 5px;
   justify-content: center;
   align-items: center;
 }

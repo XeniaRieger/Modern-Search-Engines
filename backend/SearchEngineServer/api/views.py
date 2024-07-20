@@ -35,7 +35,15 @@ def search(request):
             data = json.loads(request.body)
             query = data.get('query', '')
             top_k = int(data.get('top_k', 20))
-            docs = document_index.retrieve_bm25(query, top_k=top_k)
+            retrieval_method = data.get('retrieval_method', 'bm25').lower()
+
+            if retrieval_method == "bm25":
+                docs = document_index.retrieve_bm25(query, top_k=top_k)
+            elif retrieval_method == "tfidf":
+                docs = document_index.retrieve_tfidf(query, top_k=top_k)
+            else:
+                return JsonResponse({'error': 'Retrieval method not supported'}, status=400)
+
             for d in docs:
                 del d['raw_text']
             # generate_batch_summary(docs)

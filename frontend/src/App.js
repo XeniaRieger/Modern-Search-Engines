@@ -16,11 +16,11 @@ function App() {
   };
 
   const handleSearch = async (e) => {
-    if (loading) return;
     e.preventDefault();
-
+    if (loading) return;
     if (!query) return;
 
+    let method = e.target.elements.retrieval_method.value
     setResults([]);
     try {
       setLoading(true);
@@ -29,7 +29,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query, "top_k": amount }),
+        body: JSON.stringify({ query, "top_k": amount, "retrieval_method": method }),
       });
       const data = await response.json();
       setResults(data);
@@ -56,15 +56,25 @@ function App() {
             <button type="submit"><img src="/search-icon.svg" alt="Search" className="search-icon" /></button>
           </div>
 
-          <div className='amount-box'>
-            <label for="top_k" value="Amount">Amount</label>
-            <input id="top_k"
-              type="number"
-              min="10"
-              max="100"
-              value={amount}
-              onChange={e => setAmount(e.target.value)} />
+          <div className="query-options">
+            <div>
+              <label for="retrieval_method" value="retrieval_method">Method</label>
+              <select name="retrieval_method" id="retrieval_method">
+                <option value="bm25" selected>BM25</option>
+                <option value="tfidf">TF-IDF</option>
+              </select>
+            </div>
+            <div>
+              <label for="top_k" value="amount">Amount</label>
+              <input id="top_k"
+                type="number"
+                min="10"
+                max="100"
+                value={amount}
+                onChange={e => setAmount(e.target.value)} />
+            </div>
           </div>
+
         </form>
         <div className="results">
           {loading && <span class="spinner"></span>}
