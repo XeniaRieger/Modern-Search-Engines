@@ -1,20 +1,16 @@
-import collections
 from BM25Ranker import BM25Ranker
-import gensim
-from gensim.corpora.dictionary import Dictionary
 from DocumentIndex import *
 from Document import Document
-from gensim.test.utils import datapath
-import os
 from LDAmodel import *
 import pickle
+import math
 
 class ReRanker:
 
 	# parameter relevance_importance controls the importance of relevance scores vs. diversity
 	# 0 <= relevance_importance <= 1, higher number favors relevance
 	# consider specifies how many documents ranked below the current one are considered for reranking (smaller number = faster)
-	def __init__(self, relevance_importance: int = 0.7, consider: int = 20):
+	def __init__(self, relevance_importance: int = 0.7, consider: int = 100):
 		parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
 		lda = LDAmodel.load(os.path.join(parent_path, "serialization", "ldamodel.pickle"))
 		self.doc_topics = lda.document_topics
@@ -37,9 +33,9 @@ class ReRanker:
 			# greedily add the single document that maximizes the weighted mix of l * relevance + (1-l) diversity up to set amout of docs by consider
 			v_max = 0
 			max_doc = 0
-			for doc in documents[:consider]:
+			for doc in documents[:self.consider]:
 				reranked.append(doc)
-				v = self.relevance_importance * measure_relevance(reranked) + (1 - self.relevance_importance) * measure_diversity(reranked)
+				v = self.relevance_importance * self.measure_relevance(reranked) + (1 - self.relevance_importance) * self.measure_diversity(reranked)
 				if v >= v_max:
 					v_max = v
 					max_doc = doc
@@ -49,7 +45,7 @@ class ReRanker:
 		return reranked
 
 	# 0 <= relevance <= 1
-	def meaure_relevance(self, ranking):
+	def measure_relevance(self, ranking):
 		relevance = 0.0
 		max_relevance = 0.0
 		for doc_id in self.original_ranking[:len(ranking)]:
@@ -60,15 +56,27 @@ class ReRanker:
 
 	# 0 <= diversity <= 1
 	def measure_diversity(self, ranking):
-		diversity = 0.0
+		all_topics = {}
 		for doc in ranking:
-			print(self.doc_topics[doc.url_hash])
+			topics = self.doc_topics[doc.url_hash]
+			for topic in topics:
+				if topic[0] in all_topics:
+					all_topics[topic] += topic[1] / len(ranking)
+				else:
+					all_topics[topic] = topic[1] / len(ranking)
+		deviation = 0
+		perfect_state = 1 / len(self.topics)
+		for topic in all_topics:
+			deviation += math.abs(all_topics[topic] - perfect_state)
+		if deviation > 1:
+			deviation = 1
+		return 1 - deviation
 
 	def rank_documents(self, query: str, top_k: int = 10):
 		parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
 		index = DocumentIndex.load(os.path.join(parent_path, "serialization", "index.pickle"))
 		self.original_ranking = index.retrieve(query, top_k) # TODO change to bm25
-		self.measure_diversity(self.original_ranking)
+		print(self.diversify(self.original_ranking, top_k))
 
 if __name__ == '__main__':
 	ranker = ReRanker()
