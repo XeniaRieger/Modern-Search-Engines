@@ -19,6 +19,7 @@ def tokenize(text: str, ngrams=3) -> list:
     tokens = nltk.tokenize.word_tokenize(text)
     cleaned_tokens = [lemmatizer.lemmatize(t) for t in tokens if t.isalnum() and t not in stopwords]
 
+
     ngram_list = []
     for n in range(1, ngrams + 1):
         ngram_list.extend([" ".join(t) for t in nltk.ngrams(cleaned_tokens, n)])
@@ -52,12 +53,12 @@ def tokenize_query(query: str, ngrams=3, max_length_before_ngram=40):
             break
         # query expansion
         added_syns = []
-        for syn in wordnet.synonyms(word)[0]:
-            syn_lem = lemmatizer.lemmatize(syn)
-            if syn_lem != word:
-                expanded_query.insert(i + 1, syn_lem)
-                i += 1
-        i += 1
+        if wordnet.synsets(word):
+            for syn in wordnet.synsets(word)[0].lemmas():
+                syn_lem = lemmatizer.lemmatize(syn.name())
+                if syn_lem != word:
+                    expanded_query.insert(i + 1, syn_lem)
+                    i += 1
     if len(query) > max_length:
         query = query[:max_length]
 
