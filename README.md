@@ -37,7 +37,8 @@ python DocumentIndex.py
 The generated index file is stored at ``serialization\documents\index.pickle``.
 
 ## Run Topic Model
-The topic model is needed to rerank documents for diversity. Execute to train:
+The topic model is needed to rerank documents for diversity. A model trained on already crawled documents is stored at``serialization\ldamodel.pickle``. 
+To train a new model on your crawled documents execute:
 ```
 cd backend/core
 python LDAmodel.py
