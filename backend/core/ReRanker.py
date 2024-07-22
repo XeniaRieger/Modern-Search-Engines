@@ -7,12 +7,18 @@ import pickle
 class CustomUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
         if name == 'LDAmodel':
-            from core.LDAmodel import LDAmodel
-            return LDAmodel
+            try:
+                from backend.core.LDA import LDAmodel
+                return LDAmodel
+            except:
+            #from backend.core.LDAmodel import LDAmodel
+                from LDAmodel import LDAmodel
+                return LDAmodel
         return super().find_class(module, name)
 
 def load_lda_model(path):
     with open(path, 'rb') as f:
+        print(path)
         return CustomUnpickler(f).load()
 
 
@@ -22,6 +28,7 @@ class ReRanker:
     # 0 <= relevance_importance <= 1, higher number favors relevance
     # consider specifies how many documents ranked below the current one are considered for reranking (smaller number = faster)
     def __init__(self):
+        print(os.path.join(os.path.dirname(os.path.normpath(os.getcwd())), "serialization", "ldamodel.pickle"))
         lda = load_lda_model(os.path.join(os.path.dirname(os.path.normpath(os.getcwd())), "serialization", "ldamodel.pickle"))
         self.doc_topics = lda.document_topics
         self.topics = lda.topics
