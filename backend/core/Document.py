@@ -28,7 +28,7 @@ class Document:
         self.description = None
         self.keywords = None
         self.single_tokens = None  # single word tokens  no n-grams!
-        self.raw_text = None       # the raw document text with stopwords etc
+        self.raw_text = None       # the raw document text with stopwords etc (for doc2query)
         self.raw_html = None
         self.title = None
         self.links = []
@@ -80,6 +80,7 @@ class Document:
         for tag in self.soup(["script", "style", "link", "meta"]):
             tag.decompose()
 
+        # if main tag is available we only use the main tag content
         main_tag = self.soup.find("main")
         if not main_tag:
             text = self.soup.get_text()
@@ -114,7 +115,7 @@ class Document:
     def __detect_document_language(self):
         try:
             # first extract the lang property from the html tag
-            # we add 33% probability to the language thats listed in the html tag
+            # we add 33% probability to the language that's listed in the html tag
             # then detect the language of the text content
             # if the "en" language is above 40%, the document is considered english
 
@@ -255,7 +256,7 @@ class Document:
 
     def __getstate__(self):
         state = self.__dict__
-        # exclude the soup from the pickle serialisation to reduce file size
+        # exclude some attributes from the pickle serialisation to reduce file size
         if "soup" in state:
             del state["soup"]
 

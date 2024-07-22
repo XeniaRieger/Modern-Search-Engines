@@ -117,11 +117,6 @@ class DocumentIndex:
         self.doc_metadata[doc.url_hash]['headings'] = {}
         self.doc_metadata[doc.url_hash]['text_emphasis'] = {}
 
-        # TODO check if this is useful or not
-        # extend the tokens by the description meta information
-        # if doc.description is not None:
-        #     single_tokens.extend(tokenize(doc.description))
-
         tokens = tokenize(' '.join(single_tokens), ngrams) if ngrams > 1 else single_tokens
         if doc.title:
             title_tokens = tokenize(doc.title, ngrams)
@@ -243,7 +238,7 @@ if __name__ == '__main__':
     index.create_index_for_documents(documents_path, ngrams=3, use_doc2query=True)
 
     index.save(os.path.join(parent_path, "serialization", "index.pickle"))
-    #
+
     # load an already created index with:
     # index = DocumentIndex.load(os.path.join(parent_path, "serialization", "index.pickle"))
     # print(index.retrieve_bm25("Hotels"))

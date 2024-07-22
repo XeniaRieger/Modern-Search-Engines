@@ -1,10 +1,14 @@
 
 ## General
 - First the crawler runs and saves the documents on disk as pickle files.
-The crawler is designed to respect the robots.txt file and crawl delays
+The crawler is designed to respect the robots.txt file and crawl delays.
+We separated crawling and indexing because of the time it takes for the doc2query model to extend each documents tokens.
 - When the crawler is finished, the index is built. It reads the documents from disk,
- stores them inside an inverted index and calculates the TF-IDF. By default, it extends the
+ stores them inside an inverted index and calculates the TF-IDF and BM25 scores. By default, it extends the
  document tokens by the doc2query method.
+- For the user interface we use a web interface created with React
+- As API to the backend we use a Django REST Server
+
 
 ## Install requirements
 ```
