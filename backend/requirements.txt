@@ -4,5 +4,3 @@ langdetect==1.0.7
 requests==2.31.0
 django
 djangorestframework
-streamlit
-streamlit.components.v1
