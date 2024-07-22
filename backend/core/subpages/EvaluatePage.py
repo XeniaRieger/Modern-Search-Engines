@@ -4,7 +4,7 @@ from DatasetEntry import *
 import pandas as pd
 import math
 import time
-import scipy
+from ReRanker import ReRanker 
 
 if print_status:
     print("evaluating")
@@ -18,6 +18,7 @@ def get_all_entries(evaluation_folder:str) ->list[DatasetEntry]:
             dataset.append(pickle.load(f))
     return dataset
 
+@st.cache_data
 def calculate_MRR(model_results, gt_results):
     i = 1
     for res in model_results:
@@ -26,6 +27,7 @@ def calculate_MRR(model_results, gt_results):
         i += 1
     return 0
 
+@st.cache_data
 def calculate_DCG(model_results, gt_results):
     DCG = 0
     IDCG = 0
@@ -38,6 +40,7 @@ def calculate_DCG(model_results, gt_results):
         IDCG += 1/math.log2(j+1)
     return DCG / IDCG
 
+@st.cache_data
 def calculate_MAP(model_results, gt_results):
     rel_at_n = 0
     precision = 0
@@ -47,29 +50,33 @@ def calculate_MAP(model_results, gt_results):
             precision += rel_at_n/n
     return precision / len(gt_results)
 
-
 @st.cache_data
-def search_results(m, query:str, k:int) -> list[str]:
-    #results = []
+def search_results_per_model(m, query:str, k:int) -> list[str]:
     if m == "tf-idf":
-        return index.retrieve(query, k)
-        #return index.retrieve(query, k)
+        return index.retrieve_tfidf(query, k)
     if m == "BM25":
-    #if st.session_state["BM25"]:
-        #pass #TODO: fill BM25 model
+        print("retrieve BM25")
         return index.retrieve_bm25(query, k)
-    if m == "LLM":
-    #if st.session_state["LLM"]:
-        #TODO: fill LLM model
-        return []
-    return []
+    if m == "BM25_rerank":
+        ranker.rank_documents(original_ranking=index.retrieve_bm25(query, k), topic_threshhold=0.5, 
+                                       relevance_importance=st.session_state.get("relevance"), consider=10)
+    if m == "tf-idf_rerank":
+        return ranker.rank_documents(original_ranking=index.retrieve_tfidf(query, k), topic_threshhold=0.5, 
+                                       relevance_importance=st.session_state.get("relevance"), consider=10)
+    return []  
+ 
+@st.cache_resource
+def load_ranker():
+    return ReRanker() 
 
 with st.form("evaluate"):
-    models = st.multiselect("Which retrieval models would you like to evaluate and compare?", ("tf-idf", "BM25", "BM25_divers", "Doc2Query"))
+    models = st.multiselect("Which retrieval models would you like to evaluate and compare?", ("tf-idf", "BM25", "BM25_rerank", "tf-idf_rerank"))
+    relevance = st.slider("Diversity Value for reranking", min_value=0.0, max_value=1.0, value=0.5)
     default_value=10
+
     with st.container():
-        if(st.session_state.get("for_all")):
-            default_value=st.session_state["set_all_val"]   
+        if st.session_state.get("for_all"):
+            default_value = st.session_state.get("set_all_val")
 
         NDCG = st.checkbox("NDCG", value=True)
         NDCG_value = st.slider("NDCG@ with value", min_value=1, max_value=15, value=default_value)
@@ -83,29 +90,38 @@ with st.form("evaluate"):
         run_time=st.checkbox("retrieval time", value=True)
     if st.form_submit_button("Ok"):
         if for_all:
+            MRR_val = set_all_val
+            NDCG_val = set_all_val
+            MAP_val = set_all_val
             change_session_state(models=models, metrics={"MRR": MRR, "NDCG":NDCG, "runtime":run_time, "MAP":MAP},
-                                k_values = {"MRR": MRR_value, "NDCG":NDCG_value, "MAP":MAP_value}, set_all_val=set_all_val, for_all=for_all)
+                                k_values = {"MRR": MRR_value, "NDCG":NDCG_value, "MAP":MAP_value}, set_all_val=set_all_val, for_all=for_all,
+                                relevance=relevance)
         else:
             change_session_state(models=models, metrics={"MRR": MRR, "NDCG":NDCG, "runtime":run_time, "MAP":MAP},
-                    k_values = {"MRR": MRR_value, "NDCG":NDCG_value, "MAP":MAP_value}, set_all_val=None, for_all=for_all)
+                    k_values = {"MRR": MRR_value, "NDCG":NDCG_value, "MAP":MAP_value}, set_all_val=None, for_all=for_all,
+                    relevance=relevance)
         st.rerun()
 
 st.button("Cancel", on_click=initialize, args=[True])   
-
 
 if st.session_state.get("metrics"):
     dataset=get_all_entries(evaluation_folder)
     n = len(dataset)
 
+    if ("tf-idf_rerank" in st.session_state.models or "BM25_rerank" in st.session_state.models):
+        ranker = load_ranker()
+    print(st.session_state)
+    MRR_val = st.session_state.k_values["MRR"]
+    NDCG_val = st.session_state.k_values["NDCG"]
+    MAP_val = st.session_state.k_values["MAP"]
+
     if st.session_state.for_all:    
         k = st.session_state.set_all_val
-        MRR_val = k
-        NDCG_val = k
-        MAP_val = k
+        #MRR_val = k
+        #NDCG_val = k
+        #MAP_val = k
     else:
-        MRR_val = st.session_state.k_values["MRR"]
-        NDCG_val = st.session_state.k_values["NDCG"]
-        MAP_val = st.session_state.k_values["MAP"]
+        #k = max(st.session_state.get("metrics").values())
         k = max(MRR_val, NDCG_val, MAP_val)
     
     res = {"idx":[], "model":[], "MRR":[], "NDCG":[], "MAP":[]}
@@ -122,7 +138,7 @@ if st.session_state.get("metrics"):
         idx = 0
         for d in dataset:
             start_time = time.time()
-            m_results =  search_results(m, d.query, k)
+            m_results =  search_results_per_model(m, d.query, k)
             r_time += (time.time() - start_time)
             model_results = [x.get("url") for x in m_results]
             gt_results = d.relevant_results
