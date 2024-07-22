@@ -19,9 +19,9 @@ class BM25Ranker:
         now = datetime.now(timezone.utc)
         for doc_id, terms in tqdm(self.__index.tf.items()):
             doc_len = sum(terms.values())
+            time_weight = self.__get_recency_score(doc_id, now)
             for term, tf in terms.items():
                 weight = self.__get_weight(term, doc_id)
-                time_weight = self.__get_recency_score(doc_id, now)
                 fraction = (tf * (self.__k1 + 1)) / (tf + self.__k1 * (1 - self.__b + self.__b * (doc_len / self.__index.avg_doc_length)))
                 self.__bm25_doc_term[doc_id][term] = time_weight * weight * self.__index.idf[term] * fraction
 
@@ -29,15 +29,15 @@ class BM25Ranker:
         w = 1.0
         doc = self.__index.doc_metadata[doc_id]
         if 'title' in doc and term in doc['title']:
-            w *= 1.75
+            w *= 2
 
         for h in doc['headings'].values():
             if term in h:
-                w *= 1.5
+                w *= 1.6
 
         for e in doc['text_emphasis'].values():
             if term in e:
-                w *= 1.1
+                w *= 1.2
 
         return w
 
@@ -52,7 +52,12 @@ class BM25Ranker:
             if term in self.__index.inverted_index:
                 for doc_id in self.__index.inverted_index[term]:
                     if term in self.__bm25_doc_term[doc_id]:
-                        query_bm25[doc_id] += self.__bm25_doc_term[doc_id][term]
+
+                        # we weight a longer ngram exponentially more than a single one
+                        w = math.exp(0.29 * len(term.split()) - 0.336)
+
+                        points = self.__bm25_doc_term[doc_id][term]
+                        query_bm25[doc_id] += points * w
         return query_bm25
 
 

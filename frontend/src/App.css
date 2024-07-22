@@ -1,7 +1,7 @@
 
 main {
   background-color: black;
-  background: linear-gradient(to bottom, transparent 50%, rgb(0, 0, 0)), url("https://s1.1zoom.me/big0/962/Germany_Houses_Rivers_Marinas_Boats_Tuebingen_589316_1280x826.jpg");
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.833) 85%, rgb(0, 0, 0)), url("https://s1.1zoom.me/big0/962/Germany_Houses_Rivers_Marinas_Boats_Tuebingen_589316_1280x826.jpg");
 
   background-repeat: no-repeat;
   background-size: cover;
@@ -16,6 +16,15 @@ main {
 span {
   color: rgb(255, 255, 255);
   font-size: 25pt;
+}
+
+label {
+  color: rgb(255, 255, 255);
+  font-size: 17pt;
+}
+
+button {
+  max-width: 100px;
 }
 
 .spinner {
@@ -50,6 +59,40 @@ span {
   gap: 3em;
 }
 
+.content form {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+
+@media screen and (max-width: 700px) {
+  .results-list {
+    margin: 1em !important;
+  }
+}
+@media screen and (max-width: 500px) {
+  .results-list {
+    margin: 1em 0 !important;
+  }
+  .content {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+@media screen and (max-width: 1400px) {
+  .content {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 1600px) {
+  .content {
+    width: 80%;
+  }
+}
+
 @media screen and (max-width: 1200px) {
   .content {
     width: 100%;
@@ -62,9 +105,10 @@ a:link, a:visited {
 }
 
 .search-box {
-  width: 50%;
   display: flex;
   gap: 10px;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-box button {
@@ -91,20 +135,40 @@ a:link, a:visited {
   transform: translate(-1px, 1px);
 }
 
-input[type="text"] {
+input, select {
   border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 11px;
-  padding-left: 30px;
-  border-radius: 30px;
   background-color: rgb(0, 0, 0);
+  padding: 11px;
+  border-radius: 30px;
   color: rgb(255, 255, 255);
-  width: 100%;
+}
+
+input:focus{
+  outline: none;
+}
+
+input[type="text"] {
+  padding-left: 30px;
   font-size: 13pt;
+  width: 350px;
 }
 
 input[type="text"]:focus {
   outline: none;
   border: 1px solid rgba(52, 150, 255, 0.57);
+}
+
+.query-options {
+  display: flex;
+  gap: 40px;
+}
+
+.query-options > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+  align-items: center;
 }
 
 .results {
@@ -121,49 +185,25 @@ input[type="text"]:focus {
   margin-bottom: 2.3em;
   max-width: 100%;
   text-overflow: ellipsis;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 1em; 
+  border-radius: 20px; 
 }
 
-.url-box {
+.diversity-box {
   display: flex;
+  flex-direction: column;
+}
+
+.diversity-box div {
+  display: flex;
+  flex-direction: row;
   align-items: center;
-  font-size: 11pt;
-  text-decoration: none;
-  
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.url-box > img {
-  width: 24px;
-  height: 24px;
-  image-rendering: pixelated;
-  border-radius: 6px;
-  margin-right: 5px;
-}
-
-.doc-title {
-  font-size: 16pt;
-  font-weight: bold;
-}
-
-.doc-title:hover {
-  text-decoration: underline;
-}
-
-.doc-title:visited {
-  text-decoration: none;
-  color: rgb(167, 12, 167);
-}
-
-.speaker-icon {
-  width: 24px;
-  height: 24px;
-  filter: invert(100%);
-  cursor: pointer;
-}
-
-.desc-box {
-  display: flex;
   gap: 10px;
-  margin-left: -42px;
 }
+
+.diversity-box span {
+  font-size: 12pt;
+}
+
+

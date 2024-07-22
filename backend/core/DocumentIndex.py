@@ -4,7 +4,9 @@ import math
 import os
 import pickle
 import datetime
+from urllib.parse import urlparse
 from Tokenizer import tokenize
+from Tokenizer import tokenize_query
 from Doc2Query import doc_2_query_minus
 from BM25Ranker import BM25Ranker
 from datetime import *
@@ -70,6 +72,10 @@ class DocumentIndex:
 
         print("Index created.")
 
+    def __base_url_relevant(self, url):
+        base_url = urlparse(url).scheme.lower().replace("tuebingen", "tübingen").replace("tubingen", "tübingen").replace("tübinger", "tübingen")
+        return "tübingen" in base_url
+
     def __load_documents(self, documents_path):
         docs = []
         for root, dirs, files in os.walk(documents_path):
@@ -78,7 +84,8 @@ class DocumentIndex:
                     try:
                         with open(os.path.join(root, file), 'rb') as f:
                             doc = pickle.load(f)
-                            if doc.is_relevant:
+                            # making sure to just index relevant documents
+                            if self.__base_url_relevant(doc.url) or (doc.is_relevant and "tübingen" in doc.single_tokens):
                                 docs.append(doc)
                     except Exception as e:
                         print(str(e))
@@ -205,22 +212,24 @@ class DocumentIndex:
                 doc = pickle.load(f)
                 docs.append({
                     "url": doc.url,
+                    "url_hash": doc.url_hash,
                     "title": doc.title,
                     "description": doc.description,
                     "icon_url": doc.icon_url,
-                    "score": score
+                    "score": score,
+                    "raw_text": doc.raw_text,
                 })
         return docs
 
-    def retrieve(self, query: str, top_k: int = 10):
-        query_tokens = tokenize(query)
+    def retrieve_tfidf(self, query: str, top_k: int = 10):
+        query_tokens = tokenize_query(query)
         query_tfidf = self.__calculate_query_tfidf(query_tokens)
         scores = self.__score_documents(query_tfidf)
         sorted = self.__sort_scores(scores)
         return self.__get_documents(sorted[:top_k])
 
     def retrieve_bm25(self, query, top_k: int = 10):
-        query_tokens = tokenize(query)
+        query_tokens = tokenize_query(query)
         scores = self.__bm25_ranker.query_bm25(query_tokens)
         sorted = self.__sort_scores(scores)
         return self.__get_documents(sorted[:top_k])
@@ -231,7 +240,7 @@ if __name__ == '__main__':
     documents_path = os.path.join(parent_path, "serialization", "documents", "pickle")
 
     index = DocumentIndex()
-    index.create_index_for_documents(documents_path, ngrams=2, use_doc2query=True)
+    index.create_index_for_documents(documents_path, ngrams=3, use_doc2query=True)
 
     index.save(os.path.join(parent_path, "serialization", "index.pickle"))
     #

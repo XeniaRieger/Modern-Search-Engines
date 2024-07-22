@@ -1,28 +1,24 @@
 import { useState } from 'react'
 import './App.css';
+import Document from './components/Document'
 
 function App() {
 
-  const [query, setQuery] = useState('');
+
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [diversity, setDiversity] = useState(50);
 
-  function textToSpeech(text) {
-    window.speechSynthesis.cancel();
-    let synth = new SpeechSynthesisUtterance(text)
-    synth.lang = 'en-US';
-    window.speechSynthesis.speak(synth);
-  }
-
-  const handleInputChange = (e) => {
-    setQuery(e.target.value);
-  };
 
   const handleSearch = async (e) => {
-    if(loading) return;
     e.preventDefault();
+    if (loading) return;
 
-    if(!query) return;
+    let method = e.target.elements.retrieval_method.value;
+    let query = e.target.elements.query.value;
+    let amount = e.target.elements.amount.value;
+
+    if (!query) return;
 
     setResults([]);
     try {
@@ -32,7 +28,12 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({
+          "query": query,
+          "top_k": amount,
+          "retrieval_method": method,
+          "diversity": diversity/100
+        }),
       });
       const data = await response.json();
       setResults(data);
@@ -43,18 +44,54 @@ function App() {
     }
   };
 
+
   return (
     <main>
       <div className='content'>
         <h1 className="logo">TüBing</h1>
-        <form className="search-box" onSubmit={handleSearch}>
-          <input
-            type="text"
-            value={query}
-            onChange={handleInputChange}
-            placeholder="Search..."
-          />
-          <button type="submit"><img src="/search-icon.svg" alt="Search" className="search-icon" /></button>
+        <form onSubmit={handleSearch}>
+          <div className="search-box">
+            <input
+              id="query"
+              type="text"
+              placeholder="Search..."
+            />
+            <button type="submit"><img src="/search-icon.svg" alt="Search" className="search-icon" /></button>
+          </div>
+
+          <div className="query-options">
+            <div>
+              <label for="retrieval_method" value="retrieval_method">Method</label>
+              <select name="retrieval_method" id="retrieval_method">
+                <option value="bm25" selected>BM25</option>
+                <option value="tfidf">TF-IDF</option>
+              </select>
+            </div>
+            <div>
+              <label for="amount" value="amount">Amount</label>
+              <input id="amount"
+                type="number"
+                defaultValue="100"
+                min="10"
+                max="100" />
+            </div>
+            <div className="diversity-box">
+              {/* <label for="rerank">rerank</label>
+              <input type="checkbox" id="rerank" name="rerank"/> */}
+              <label for="diversity">Priority</label>
+              <div>
+                <span>relevance</span>
+                <input id="diversity"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={diversity}
+                  onChange={e => setDiversity(e.target.value)} />
+                <span>diversity</span>
+              </div>
+            </div>
+          </div>
+
         </form>
         <div className="results">
           {loading && <span class="spinner"></span>}
@@ -63,24 +100,11 @@ function App() {
             <ul className='results-list'>
               {results.map((doc, index) => (
                 <li key={index}>
-                  <a className='url-box' href={doc.url}>
-                    {doc.icon_url && <img src={doc.icon_url} />}
-                    <p>{doc.url}</p>
-                  </a>
-                  <a className="doc-title" href={doc.url}>{doc.title}</a>
-                  <div className="desc-box">
-                    {doc.description.length > 0 &&
-                      <img 
-                        className="speaker-icon"
-                        onClick={() => textToSpeech(doc.description)} 
-                        src={'/speaker-icon.svg'}/>
-                    }
-                    <p>{doc.description.substring(0, 550)}{doc.description.length > 550 ? "...":""}</p>
-                  </div>
+                  <Document doc={doc} />
                 </li>
               ))}
             </ul>
-            )}
+          )}
         </div>
       </div>
     </main>

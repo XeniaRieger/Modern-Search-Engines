@@ -2,13 +2,15 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
-
+from spellchecker import SpellChecker
 
 nltk.download('words')
 nltk.download('stopwords')
 nltk.download('punkt')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
+
+spell = SpellChecker()
 
 lemmatizer = WordNetLemmatizer()
 stopwords = stopwords.words('english')
@@ -18,6 +20,7 @@ def tokenize(text: str, ngrams=3) -> list:
     text = text.lower().replace("tuebingen", "tübingen").replace("tubingen", "tübingen").replace("tübinger", "tübingen")
     tokens = nltk.tokenize.word_tokenize(text)
     cleaned_tokens = [lemmatizer.lemmatize(t) for t in tokens if t.isalnum() and t not in stopwords]
+
 
     ngram_list = []
     for n in range(1, ngrams + 1):
@@ -29,6 +32,8 @@ def tokenize_query(query: str, ngrams=3, max_length_before_ngram=40):
     max_length = max_length_before_ngram
     query = query.lower()
     tokens = nltk.tokenize.word_tokenize(query)
+    # correct misspelled words
+    tokens = [spell.correction(t) for t in tokens if spell.correction(t) is not None]
     # try to remove Tübingen because every doc is about tübingen
     try_query = [e for e in tokens if e not in ("tuebingen", "tubingen", "tübingen", "tübinger")]
     if not try_query:
@@ -52,12 +57,12 @@ def tokenize_query(query: str, ngrams=3, max_length_before_ngram=40):
             break
         # query expansion
         added_syns = []
-        for syn in wordnet.synonyms(word)[0]:
-            syn_lem = lemmatizer.lemmatize(syn)
-            if syn_lem != word:
-                expanded_query.insert(i + 1, syn_lem)
-                i += 1
-        i += 1
+        if wordnet.synsets(word):
+            for syn in wordnet.synsets(word)[0].lemmas():
+                syn_lem = lemmatizer.lemmatize(syn.name())
+                if syn_lem != word:
+                    expanded_query.insert(i + 1, syn_lem)
+                    i += 1
     if len(query) > max_length:
         query = query[:max_length]
 
