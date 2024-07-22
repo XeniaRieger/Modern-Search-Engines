@@ -60,7 +60,7 @@ python batch_retrieve.py path/to/queryFile.txt path/to/resultList.txt
 ```
 
 ## Run Evalation GUI
-'''
+```
 cd backend/core
 python streamlit run DatasetCreator.py
-'''
+´´´´
