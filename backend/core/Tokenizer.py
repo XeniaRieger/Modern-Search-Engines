@@ -41,15 +41,15 @@ def tokenize_query(query: str, ngrams=3, max_length_before_ngram=40):
     else:
         query = try_query
     # try to remove stopwords + lemmatize
-    cleaned_tokens = [lemmatizer.lemmatize(t) for t in tokens if t.isalnum() and t not in stopwords]
+    cleaned_tokens = [lemmatizer.lemmatize(t) for t in query if t.isalnum() and t not in stopwords]
     if cleaned_tokens:
         query = cleaned_tokens
     else:
-        min_clean = [lemmatizer.lemmatize(t) for t in tokens if t.isalnum()]
+        min_clean = [lemmatizer.lemmatize(t) for t in query if t.isalnum()]
         if min_clean:
             query = min_clean
         else:
-            query = [lemmatizer.lemmatize(t) for t in tokens]
+            query = [lemmatizer.lemmatize(t) for t in query]
     expanded_query = query.copy()
     i = 0
     for word in query:
@@ -63,12 +63,12 @@ def tokenize_query(query: str, ngrams=3, max_length_before_ngram=40):
                 if syn_lem != word:
                     expanded_query.insert(i + 1, syn_lem)
                     i += 1
-    if len(query) > max_length:
-        query = query[:max_length]
+    if len(expanded_query) > max_length:
+        expanded_query = expanded_query[:max_length]
 
     query_ngrams = []
     for n in range(1, ngrams + 1):
-        query_ngrams.extend([" ".join(ngram) for ngram in nltk.ngrams(query, n)])
+        query_ngrams.extend([" ".join(ngram) for ngram in nltk.ngrams(expanded_query, n)])
 
     return query_ngrams
 
