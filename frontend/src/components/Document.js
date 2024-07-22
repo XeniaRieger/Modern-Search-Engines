@@ -46,6 +46,13 @@ function Document({ doc }) {
         <p>{doc.url}</p>
       </a>
       <a className="doc-title" href={doc.url}>{doc.title}</a>
+      <ul className="topics">
+        {doc?.topics.map((topic, index) => (
+          <li key={index}>
+            {topic}
+          </li>
+        ))}
+      </ul>
       <div className="desc-box">
         {doc.description.length > 0 &&
           <div className={`speaker-box ${descAudioPlaying ? "playing" : ""}`}>

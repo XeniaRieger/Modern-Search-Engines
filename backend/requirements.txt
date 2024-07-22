@@ -3,6 +3,8 @@ beautifulsoup4==4.8.2
 nltk==3.6.7
 langdetect==1.0.7
 requests==2.31.0
+django
+djangorestframework
 python-dateutil
 Django
 djangorestframework
@@ -13,3 +15,7 @@ transformers==4.42.4
 tensorflow==2.10.1
 git+https://github.com/terrierteam/pyterrier_doc2query.git
 git+https://github.com/terrierteam/pyterrier_dr.git
+
+streamlit
+streamlit.components.v1
+

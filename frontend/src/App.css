@@ -1,7 +1,7 @@
 
 main {
   background-color: black;
-  background: linear-gradient(to bottom, transparent 50%, rgb(0, 0, 0)), url("https://s1.1zoom.me/big0/962/Germany_Houses_Rivers_Marinas_Boats_Tuebingen_589316_1280x826.jpg");
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.833) 85%, rgb(0, 0, 0)), url("https://s1.1zoom.me/big0/962/Germany_Houses_Rivers_Marinas_Boats_Tuebingen_589316_1280x826.jpg");
 
   background-repeat: no-repeat;
   background-size: cover;
@@ -107,6 +107,8 @@ a:link, a:visited {
 .search-box {
   display: flex;
   gap: 10px;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-box button {
@@ -133,7 +135,7 @@ a:link, a:visited {
   transform: translate(-1px, 1px);
 }
 
-input {
+input, select {
   border: 1px solid rgba(255, 255, 255, 0.3);
   background-color: rgb(0, 0, 0);
   padding: 11px;
@@ -156,9 +158,17 @@ input[type="text"]:focus {
   border: 1px solid rgba(52, 150, 255, 0.57);
 }
 
-.amount-box {
+.query-options {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 40px;
+}
+
+.query-options > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
   justify-content: center;
   align-items: center;
 }
@@ -176,9 +186,57 @@ input[type="text"]:focus {
 .results-list li {
   margin-bottom: 2.3em;
   max-width: 100%;
-  text-overflow: ellipsis;
   border: 1px solid rgba(255, 255, 255, 0.4);
   padding: 1em; 
   border-radius: 20px; 
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+.diversity-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.diversity-box div {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.diversity-box span {
+  font-size: 12pt;
+}
+
+
+.topics-box .topics {
+  display: flex;
+  justify-content: center;
+}
+
+.topics-box .topics li {
+  opacity: 0.75;
+  cursor: pointer;
+}
+
+
+.topics-box p {
+  color: rgb(255, 255, 255);
+  font-size: 17pt;
+  justify-content: center;
+}
+
+.topics li {
+  color: rgb(220, 220, 220);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 1em; 
+  border-radius: 20px; 
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topics li.active {
+  background-color: rgba(41, 155, 255, 0.379);
+  opacity: 1;
+}

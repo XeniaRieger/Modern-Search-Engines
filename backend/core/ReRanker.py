@@ -1,8 +1,17 @@
-from BM25Ranker import BM25Ranker
-from DocumentIndex import *
-from Document import Document
-from LDAmodel import *
+from LDAmodel import LDAmodel
 import pickle
+import os
+
+class CustomUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if name == 'LDAmodel':
+            from backend.core.LDAmodel import LDAmodel
+            return LDAmodel
+        return super().find_class(module, name)
+
+def load_lda_model(path):
+    with open(path, 'rb') as f:
+        return CustomUnpickler(f).load()
 
 class ReRanker:
 
@@ -18,9 +27,9 @@ class ReRanker:
 		self.consider = consider
 		self.original_ranking = None
 
-	def load(self, path):
-		with open(path, 'rb') as f:
-			return pickle.load(f)
+    def load(self, path):
+        with open(path, 'rb') as f:
+            return pickle.load(f)
 
 	def diversify(self, ranking):
 		reranked = []

@@ -1,19 +1,17 @@
 import os
 import gensim
 from gensim.corpora.dictionary import Dictionary
-from DocumentIndex import DocumentIndex
-from Document import Document
 import pickle
-from gensim.test.utils import datapath
 import collections
 import random
 
 class LDAmodel:
 
-	def __init__(self):
-		self.document_topics = collections.defaultdict(int)
-		self.topics = None
+    def __init__(self):
+        self.document_topics = collections.defaultdict(int)
+        self.topics = None
 
+<<<<<<< HEAD
 	def train_model(self, train_docs: int = 500, topic_num: int = 20):
 		doc_tokens = []
 		doc_ids = []
@@ -57,26 +55,26 @@ class LDAmodel:
 		self.topics = topic_names
 		#print(self.topics)
 		#print(lda.show_topics(num_topics=topic_num))
+		
+    def save(self, path):
+        tmp_path = path + ".tmp"
+        with open(tmp_path, 'wb') as f:
+            pickle.dump(self, f)
 
-	def save(self, path):
-		tmp_path = path + ".tmp"
-		with open(tmp_path, 'wb') as f:
-			pickle.dump(self, f)
+        renamed = False
+        while not renamed:
+            try:
+                os.replace(tmp_path, path)
+                renamed = True
+            except PermissionError:
+                continue
 
-		renamed = False
-		while not renamed:
-			try:
-				os.replace(tmp_path, path)
-				renamed = True
-			except PermissionError:
-				continue
-
-	def load(path):
-		with open(path, 'rb') as f:
-			return pickle.load(f)
+    def load(path):
+        with open(path, 'rb') as f:
+            return pickle.load(f)
 
 if __name__ == '__main__':
-	parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
-	model = LDAmodel()
-	model.train_model()
-	model.save(os.path.join(parent_path, "serialization", "ldamodel.pickle"))
+    parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
+    model = LDAmodel()
+    model.train_model()
+    model.save(os.path.join(parent_path, "serialization", "ldamodel.pickle"))
