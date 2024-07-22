@@ -66,6 +66,7 @@ npm start
 cd backend/core
 python batch_retrieve.py path/to/queryFile.txt path/to/resultList.txt
 ```
+The query file should contain one query number and one query per line seperated by tabs.
 
 ## Run Evalation GUI
 ```

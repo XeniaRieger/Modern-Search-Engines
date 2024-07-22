@@ -27,8 +27,6 @@ with st.form("creating_ranking", clear_on_submit=True):
                 st.markdown(res.get("description"))
             with st.expander("page preview"):
                 components.iframe(res.get("url"), width=650, height=400, scrolling = True)
-            #with st.expander("all text"):
-            #    st.markdown(doc.raw_text) 
     submitted = st.form_submit_button("Submit Ranking")
     if submitted:
         change_session_state(ranking=ranking, subrole="save")
