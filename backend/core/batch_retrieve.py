@@ -1,6 +1,8 @@
 import sys
 
 from DocumentIndex import *
+from ReRanker import ReRanker
+
 
 def load_index():
     parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
@@ -25,9 +27,12 @@ if __name__ == '__main__':
             queries[line_split[0]] = line_split[1].strip()
 
     index = load_index()
+    re_ranker = ReRanker()
     open(save_file_path, "w").close() # make file empty
     for query_num, query_term in queries.items():
-        result = enumerate(index.retrieve_bm25(query_term, top_k=100))
+        docs = index.retrieve_bm25(query_term, top_k=100)
+        docs = re_ranker.rank_documents(docs, relevance_importance=0.75, consider=len(docs))
+        result = enumerate(docs)
         with open(save_file_path, "a", encoding="utf-8") as file:
             for i, doc in result:
                 file.write(f"{query_num}\t{i+1}\t{doc['url']}\t{doc['score']}\n")
