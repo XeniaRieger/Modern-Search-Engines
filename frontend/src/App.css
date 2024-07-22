@@ -160,6 +160,8 @@ input[type="text"]:focus {
 
 .query-options {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 40px;
 }
 
@@ -184,11 +186,13 @@ input[type="text"]:focus {
 .results-list li {
   margin-bottom: 2.3em;
   max-width: 100%;
-  text-overflow: ellipsis;
   border: 1px solid rgba(255, 255, 255, 0.4);
   padding: 1em; 
   border-radius: 20px; 
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
 
 .diversity-box {
   display: flex;
@@ -207,3 +211,33 @@ input[type="text"]:focus {
 }
 
 
+.topics-box .topics {
+  display: flex;
+  justify-content: center;
+}
+
+.topics-box .topics li {
+  opacity: 0.75;
+}
+
+
+.topics-box p {
+  color: rgb(255, 255, 255);
+  font-size: 17pt;
+  justify-content: center;
+}
+
+.topics li {
+  color: rgb(220, 220, 220);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 1em; 
+  border-radius: 20px; 
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.topics li.active {
+  background-color: rgba(41, 155, 255, 0.379);
+  opacity: 1;
+}

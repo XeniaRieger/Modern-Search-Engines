@@ -7,8 +7,32 @@ function App() {
 
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [diversity, setDiversity] = useState(50);
+  const [diversity, setDiversity] = useState(10);
 
+  const [topics, setTopics] = useState([]);
+  const [activeTopics, setActiveTopics] = useState([]);
+
+  const getAllTopics = (docs) => {
+    let topicsSet = new Set();
+
+    docs.forEach(doc => {
+      doc.topics.forEach(topic => topicsSet.add(topic));
+    });
+
+    let topicsArr = Array.from(topicsSet);
+    setTopics(topicsArr);
+    setActiveTopics(topicsArr);
+  }
+
+  const toggleTopic = (topic) => {
+    let newList = [...activeTopics];
+    if (newList.includes(topic)) {
+      newList.splice(newList.indexOf(topic), 1);
+    } else {
+      newList.push(topic);
+    }
+    setActiveTopics(newList);
+  }
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -21,6 +45,7 @@ function App() {
     if (!query) return;
 
     setResults([]);
+    setTopics([]);
     try {
       setLoading(true);
       const response = await fetch('/search', {
@@ -32,11 +57,12 @@ function App() {
           "query": query,
           "top_k": amount,
           "retrieval_method": method,
-          "diversity": diversity/100
+          "diversity": diversity / 100
         }),
       });
       const data = await response.json();
       setResults(data);
+      getAllTopics(data);
     } catch (error) {
       console.error('Error fetching search results:', error);
     } finally {
@@ -44,6 +70,14 @@ function App() {
     }
   };
 
+  const checkTopicsFilter = (topics) => {
+    for (let topic of topics) {
+      if(!activeTopics.includes(topic)) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   return (
     <main>
@@ -91,6 +125,17 @@ function App() {
               </div>
             </div>
           </div>
+          <div className="topics-box">
+            {topics?.length > 0 && <p>Topics</p>}
+            <ul className="topics">
+              {topics.map((topic, index) => (
+                <li className={`${activeTopics.includes(topic) ? "active" : ""}`}
+                  onClick={() => toggleTopic(topic)}>
+                  {topic}
+                </li>
+              ))}
+            </ul>
+          </div>
 
         </form>
         <div className="results">
@@ -99,9 +144,13 @@ function App() {
           {results && (
             <ul className='results-list'>
               {results.map((doc, index) => (
-                <li key={index}>
-                  <Document doc={doc} />
-                </li>
+                <>
+                  {checkTopicsFilter(doc.topics) && (
+                    <li key={index}>
+                      <Document doc={doc} />
+                    </li>
+                  )}
+                </>
               ))}
             </ul>
           )}
