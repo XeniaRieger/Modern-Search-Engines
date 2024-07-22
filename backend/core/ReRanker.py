@@ -89,5 +89,5 @@ class ReRanker:
         ranking = self.diversify(self.original_ranking, relevance_importance, consider)
         for doc in ranking:
             topics = [self.topics[t[0]] for t in self.doc_topics[doc["url_hash"]] if t[1] >= topic_threshhold and self.topics[t[0]] is not None]
-            doc['topics'] = set(topics)
+            doc['topics'] = list(set(topics))
         return ranking
