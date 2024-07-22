@@ -9,12 +9,11 @@ class ReRanker:
 	# parameter relevance_importance controls the importance of relevance scores vs. diversity
 	# 0 <= relevance_importance <= 1, higher number favors relevance
 	# consider specifies how many documents ranked below the current one are considered for reranking (smaller number = faster)
-	def __init__(self, relevance_importance: int = 0.7, consider: int = 50):
+	def __init__(self, relevance_importance: int = 0.7, consider: int = 10):
 		parent_path = os.path.dirname(os.path.normpath(os.getcwd()))
 		lda = LDAmodel.load(os.path.join(parent_path, "serialization", "ldamodel.pickle"))
 		self.doc_topics = lda.document_topics
 		self.topics = lda.topics
-		self.topic_names = self.parse_topic_names()
 		self.relevance_importance = relevance_importance
 		self.consider = consider
 		self.original_ranking = None
@@ -22,13 +21,6 @@ class ReRanker:
 	def load(self, path):
 		with open(path, 'rb') as f:
 			return pickle.load(f)
-
-	def parse_topic_names(self):
-		topic_names = {}
-		for topic in self.topics:
-			# use first word (with highest weight for this topic)
-			topic_names[topic[0]] = topic[1].split('"')[1]
-		return topic_names
 
 	def diversify(self, ranking):
 		reranked = []
@@ -57,7 +49,7 @@ class ReRanker:
 		max_relevance = 0.0
 		for doc in self.original_ranking[:len(ranking)]:
 			max_relevance += doc["score"]
-		for doc_id in ranking:
+		for doc in ranking:
 			relevance += doc["score"]
 		return relevance / max_relevance
 
@@ -65,8 +57,8 @@ class ReRanker:
 	def measure_diversity(self, ranking):
 		all_topics = {}
 		for doc in ranking:
-			topics = self.doc_topics[doc["url_hash"]]
-			for topic in topics:
+			this_topics = self.doc_topics[doc["url_hash"]]
+			for topic in this_topics:
 				if topic[0] in all_topics:
 					all_topics[topic] += topic[1] / len(ranking)
 				else:
@@ -89,6 +81,6 @@ class ReRanker:
 			return []
 		ranking = self.diversify(self.original_ranking)
 		for doc in ranking:
-			topics = [self.topic_names[t[0]] for t in self.doc_topics[doc["url_hash"]] if t[1] >= topic_threshhold]
-			doc['topics'] = topics
+			topics = [self.topics[t[0]] for t in self.doc_topics[doc["url_hash"]] if t[1] >= topic_threshhold and self.topics[t[0]] is not None]
+			doc['topics'] = set(topics)
 		return ranking
