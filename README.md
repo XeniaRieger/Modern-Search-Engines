@@ -75,5 +75,5 @@ The query file should contain one query number and one query per line seperated 
 ## Run Evalation GUI
 ```
 cd backend/core
-python streamlit run DatasCreator.py
+python streamlit run DataCreator.py
 ```
