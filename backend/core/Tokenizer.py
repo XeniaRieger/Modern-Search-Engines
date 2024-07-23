@@ -33,11 +33,16 @@ def tokenize_query(query: str, ngrams=3, max_length_before_ngram=40):
     query = query.lower()
     tokens = nltk.tokenize.word_tokenize(query)
     # correct misspelled words
-    tokens = [spell.correction(t) for t in tokens if spell.correction(t) is not None]
+    correct_tokens = []
+    for word in tokens:
+        if spell.correction(word) is None:
+            correct_tokens.append(word)
+        else:
+            correct_tokens.append(spell.correction(t))
     # try to remove Tübingen because every doc is about tübingen
-    try_query = [e for e in tokens if e not in ("tuebingen", "tubingen", "tübingen", "tübinger")]
+    try_query = [e for e in correct_tokens if e not in ("tuebingen", "tubingen", "tübingen", "tübinger")]
     if not try_query:
-        query = tokens
+        query = correct_tokens
     else:
         query = try_query
     # try to remove stopwords + lemmatize
