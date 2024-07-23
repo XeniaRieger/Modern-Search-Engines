@@ -38,7 +38,7 @@ def tokenize_query(query: str, ngrams=3, max_length_before_ngram=40):
         if spell.correction(word) is None:
             correct_tokens.append(word)
         else:
-            correct_tokens.append(spell.correction(t))
+            correct_tokens.append(spell.correction(word))
     # try to remove Tübingen because every doc is about tübingen
     try_query = [e for e in correct_tokens if e not in ("tuebingen", "tubingen", "tübingen", "tübinger")]
     if not try_query:
